@@ -8,6 +8,33 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.1] — 2026-04-11
+
+### Added
+- `migrate_from_touchkio.sh` — one-shot migration script for users upgrading
+  from a fully-configured TouchKio installation:
+  - Stops the `touchkio` systemd user service
+  - Downloads and installs the latest TouchTheo `.deb` from GitHub Releases
+  - Migrates `~/.config/touchkio/Arguments.json` to `~/.config/touchtheo/`,
+    preserving all WEB and MQTT settings
+  - Re-encrypts the MQTT password using the TouchTheo key derivation
+    (`scryptSync(machineId, "touchtheo", 32)`) since the app name is part of
+    the AES-256-CBC key — a direct file copy would fail to decrypt
+  - Carries over any custom `ExecStart` flags from `touchkio.service`
+    (e.g. `--disable-features=...`, `--disable-gpu`) into `touchtheo.service`
+  - Copies the DDC brightness cache (`Cache/Brightness.vcp`) if present
+  - Supports `--dry-run` flag to preview all actions without modifying anything
+- `cleanup_touchkio.sh` — separate removal script to be run after confirming
+  TouchTheo works correctly:
+  - Stops and disables `touchkio.service`
+  - Removes the `touchkio` apt/deb package (with `purge` for any residual
+    dpkg config state)
+  - Deletes `~/.config/touchkio/` and `~/.config/systemd/user/touchkio.service`
+  - Guards against running before TouchTheo is confirmed working
+  - Supports `--dry-run` and `--force` flags
+
+---
+
 ## [1.5.0] — 2026-04-11
 
 Initial TouchTheo release. Forked from TouchKio v1.4.2 as a clean copy
