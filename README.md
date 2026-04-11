@@ -286,7 +286,38 @@ If you need to debug the webview **(Chrome DevTools)** use `touchtheo --app-debu
 
 In case [undocumented problems](https://github.com/theojamesvibes/touchtheo/blob/main/HARDWARE.md#faq) arise, please [create an issue](https://github.com/theojamesvibes/touchtheo/issues) and include the output of `touchtheo --version`, additional information about your system (such as operating system, hardware, etc.), and any relevant log files.
 
+## Changes from TouchKio
+
+TouchTheo is a fork/clean copy of **[TouchKio](https://github.com/leukipp/touchkio)** by [@leukipp](https://github.com/leukipp), targeted specifically at Raspberry Pi 5 and optimised for performance. The following changes were made relative to the upstream codebase:
+
+### Raspberry Pi 5 improvements
+- **RP1 thermal zone** — added `rp1_thermal` to the CPU temperature detection list, which is the primary thermal zone exposed by the Raspberry Pi 5's RP1 I/O chip
+- **Session type detection** — `XDG_SESSION_TYPE` environment variable is now the primary source for Wayland/X11 detection (always set correctly on Raspberry Pi OS Bookworm); `loginctl` is retained as a fallback. This prevents silent failures when `loginctl` is not yet fully initialised at startup
+- **RPi5 dev script** — added `start:rpi5` npm script with `--enable-features=VaapiVideoDecodeLinuxGL` for hardware-accelerated video decode on RPi5
+
+### Optimisations
+- **Static value memoization** — `getModel`, `getVendor`, `getSerialNumber`, and `getMachineId` each read from `/sys` or `/etc` exactly once and cache the result for the process lifetime
+- **Command probe caching** — `commandExists` and `sudoRights` results are cached; both are called repeatedly during init but the answers cannot change at runtime
+- **Responsive CPU metric** — `getProcessorUsage` now uses the 1-minute load average (`os.loadavg()[0]`) instead of the 5-minute average, giving more timely readings on a kiosk display
+- **Package upgrade check** — `checkPackageUpgrades` now uses `spawnSync` with `stdio: ['ignore', 'pipe', 'ignore']` instead of appending `"2>/dev/null"` as a shell argument, which only worked by accident via `execSync` shell pass-through
+- **Reserved word fix** — renamed the `interface` loop variable in `getNetworkAddresses` to `iface` (`interface` is a reserved word in strict-mode JavaScript)
+- **Dynamic error URL** — the TLS certificate error message in `webview.js` now uses `APP.issues` instead of a hardcoded upstream GitHub URL
+
 ## Credits
+
+### Full Code Attribution — TouchKio
+
+**TouchTheo is built entirely upon [TouchKio](https://github.com/leukipp/touchkio)**, an outstanding open-source project by [@leukipp](https://github.com/leukipp) (leukipp).
+
+All original architecture, logic, features, and design decisions belong to TouchKio and its author. TouchTheo exists purely as a Raspberry Pi 5 optimised fork under a different project name. If TouchTheo is useful to you, please star and support the original project:
+
+> **[https://github.com/leukipp/touchkio](https://github.com/leukipp/touchkio)** — original TouchKio repository  
+> Licensed under the [MIT License](https://github.com/leukipp/touchkio/blob/main/LICENSE)
+
+The original TouchKio credits are preserved below.
+
+---
+
 [Inspired by](https://www.jeffgeerling.com/blog/2024/home-assistant-and-carplay-pi-touch-display-2) the one and only Raspberry Pi Master, Jeff Geerling ([@geerlingguy](https://github.com/geerlingguy)).
 
 Thanks to Sebastian ([@pdsccode](https://github.com/pdsccode)) for his contributions on issues and [community](https://community.home-assistant.io/t/kiosk-mode-for-raspberry-pi-with-touch-display/821196) discussions.
