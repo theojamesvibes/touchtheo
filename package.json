@@ -1,0 +1,32 @@
+{
+    "name": "touchtheo",
+    "title": "TouchTheo",
+    "description": "Home Assistant Touch Kiosk for Raspberry Pi 5",
+    "homepage": "https://github.com/theojamesvibes/touchtheo",
+    "author": "theojamesvibes",
+    "version": "1.4.2",
+    "license": "MIT",
+    "main": "index.js",
+    "scripts": {
+        "start": "electron . --web-url=https://demo.home-assistant.io,https://demo.immichkiosk.app --trace-warnings",
+        "start:rpi5": "electron . --web-url=https://demo.home-assistant.io --enable-features=VaapiVideoDecodeLinuxGL --disable-gpu-compositing",
+        "build": "electron-forge make"
+    },
+    "prettier": {
+        "printWidth": 120
+    },
+    "devDependencies": {
+        "@electron-forge/cli": "^7.10.2",
+        "@electron-forge/maker-deb": "^7.10.2",
+        "@electron-forge/maker-zip": "^7.10.2",
+        "@electron-forge/publisher-github": "^7.10.2",
+        "electron": "^39.2.4",
+        "jszip": "^3.10.1",
+        "prettier": "^3.6.2"
+    },
+    "dependencies": {
+        "axios": "^1.13.2",
+        "electron-log": "^5.4.3",
+        "mqtt": "^5.14.1"
+    }
+}
