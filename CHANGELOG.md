@@ -8,16 +8,6 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
-## [1.5.2] — 2026-04-11
-
-### Changed
-- `README.md` — added **Migrating from TouchKio** section under Installation
-  documenting `migrate_from_touchkio.sh` and `cleanup_touchkio.sh` with full
-  usage instructions, `--dry-run` examples, and a collapsible detail block
-  explaining every step both scripts perform.
-
----
-
 ## [1.5.1] — 2026-04-11
 
 ### Added
@@ -42,6 +32,9 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
   - Deletes `~/.config/touchkio/` and `~/.config/systemd/user/touchkio.service`
   - Guards against running before TouchTheo is confirmed working
   - Supports `--dry-run` and `--force` flags
+- `README.md` — added **Migrating from TouchKio** section under Installation
+  documenting both scripts with one-liner usage, `--dry-run` examples, and a
+  collapsible detail block explaining every step each script performs
 
 ---
 
