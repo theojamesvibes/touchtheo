@@ -107,6 +107,53 @@ The setup procedure can be skipped to use the existing default arguments from th
 bash <(wget -qO- https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/install.sh) update
 ```
 
+#### Migrating from TouchKio
+
+If you are coming from an existing **TouchKio** installation, two scripts handle the full migration automatically.
+
+> [!IMPORTANT]
+> Run `migrate_from_touchkio.sh` first. Only run `cleanup_touchkio.sh` after confirming TouchTheo is working correctly. Cleanup is irreversible.
+
+**Step 1 — migrate** (installs TouchTheo, carries over all settings):
+```bash
+bash <(wget -qO- https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/migrate_from_touchkio.sh)
+```
+
+**Step 2 — cleanup** (removes TouchKio once you are satisfied):
+```bash
+bash <(wget -qO- https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/cleanup_touchkio.sh)
+```
+
+Both scripts support a `--dry-run` flag that prints every action without executing anything — useful for reviewing the migration plan before committing:
+```bash
+wget -qO migrate_from_touchkio.sh https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/migrate_from_touchkio.sh
+bash migrate_from_touchkio.sh --dry-run
+```
+
+<details><summary>What the migration scripts do</summary><div>
+
+**`migrate_from_touchkio.sh`** performs the following steps in order:
+
+1. Validates TouchKio is installed and checks your architecture (`arm64` or `x64`)
+2. Stops the `touchkio` systemd user service
+3. Downloads and installs the latest TouchTheo `.deb` from GitHub Releases
+4. Migrates `~/.config/touchkio/Arguments.json` → `~/.config/touchtheo/`
+   - All WEB settings (`web_url`, `web_theme`, `web_zoom`, `web_widget`) and MQTT connection settings (`mqtt_url`, `mqtt_user`, `mqtt_discovery`) are preserved exactly
+   - The MQTT password is **automatically re-encrypted** for TouchTheo. Because the password uses AES-256-CBC with a key derived from your machine ID **and the app name**, a direct file copy would silently fail to decrypt on next launch. The script uses an inline Node.js snippet to decrypt with the TouchKio key and re-encrypt with the TouchTheo key — no password re-entry required
+   - If re-encryption fails for any reason, the password field is removed and you will be prompted to re-enter it via `touchtheo --setup`
+5. Carries over any custom `ExecStart` flags from `touchkio.service` (e.g. `--disable-features=UseDNSHttps,AsyncDns`, `--disable-gpu`) into the new `touchtheo.service`
+6. Copies the DDC brightness cache (`Cache/Brightness.vcp`) if present, preserving your HDMI brightness setting
+7. Enables and starts `touchtheo.service`
+
+**`cleanup_touchkio.sh`** removes:
+- `touchkio` apt/deb package (including any residual dpkg config state via `purge`)
+- `~/.config/systemd/user/touchkio.service`
+- `~/.config/touchkio/` directory (Arguments.json, Cache, logs)
+
+The cleanup script checks that `touchtheo.service` is active before proceeding and asks for confirmation before deleting anything. Use `--force` to skip the confirmation prompts in automated environments.
+
+</div></details>
+
 ## Configuration
 Running `touchtheo --setup` will prompt you to enter arguments that will be used when the application starts without any specified arguments.
 These default arguments are stored in `~/.config/touchtheo/Arguments.json`, where they can also be modified.
