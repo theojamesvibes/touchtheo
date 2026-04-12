@@ -1,8 +1,5 @@
 # TouchTheo
-[![build](https://img.shields.io/github/actions/workflow/status/theojamesvibes/touchtheo/release.yml?style=flat-square)](https://github.com/theojamesvibes/touchtheo/actions)
-[![date](https://img.shields.io/github/release-date/theojamesvibes/touchtheo?style=flat-square)](https://github.com/theojamesvibes/touchtheo/releases)
 [![platform](https://img.shields.io/badge/platform-%20arm64%20|%20x64%20-teal?style=flat-square)](https://github.com/theojamesvibes/touchtheo/releases)
-[![downloads](https://img.shields.io/github/downloads/theojamesvibes/touchtheo/total?style=flat-square)](https://github.com/theojamesvibes/touchtheo/releases)
 [![sponsor](https://img.shields.io/github/sponsors/theojamesvibes?color=red&logo=github&style=flat-square)](https://github.com/sponsors/theojamesvibes)
 
 **TouchTheo** is a Node.js application that utilizes Electron to create a kiosk mode window specifically designed for a Home Assistant dashboard.
