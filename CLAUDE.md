@@ -21,11 +21,13 @@ TouchTheo is a Node.js/Electron kiosk application for Home Assistant dashboards,
 
 ## Workflow — after any code change
 
-1. **Bump the version** in `package.json` (patch for bug fixes, minor for new features).
+1. **Bump the version** in both `package.json` and `VERSION` (they must always match).
 2. **Add a `CHANGELOG.md` entry** at the top — version, date, what changed and why.
 3. **Update `README.md`** if features, configuration options, or installation steps changed.
-4. **Commit** all changed files together.
+4. **Commit** all changed files together (`package.json`, `VERSION`, `CHANGELOG.md`, and the code).
 5. **Push to `main`** and verify the GitHub Actions release workflow is queued.
+
+`VERSION` is a plain text file containing only the version number (e.g. `1.5.1`). It is the single human-readable source of truth and must stay in sync with `package.json`.
 
 ---
 
@@ -70,6 +72,7 @@ index.js                    # Electron main process entry point
 js/                         # Application JS modules
 html/                       # UI templates
 forge.config.js             # Electron Forge build config (produces .deb and .zip)
+VERSION                     # Single source of truth for version number (must match package.json)
 CHANGELOG.md
 README.md
 HARDWARE.md                 # Compatible hardware list
@@ -81,4 +84,5 @@ HARDWARE.md                 # Compatible hardware list
 
 - Do **not** use `loginctl` as the sole source of `XDG_SESSION_TYPE` — check the env var first.
 - Do **not** copy `Arguments.json` directly from TouchKio config — MQTT password must be re-encrypted with the TouchTheo key.
+- Do **not** bump `package.json` version without also updating `VERSION`, or vice versa.
 - Do **not** add features, refactor, or clean up code beyond what was asked.
