@@ -2,3 +2,5 @@ node_modules/
 docs/
 out/
 build.json
+CLAUDE.md
+.claude/
