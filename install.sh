@@ -97,6 +97,13 @@ else
     echo "Service $SERVICE_FILE not created."
 fi
 
+# Enable user session lingering so the user service and its journal persist
+echo -e "\nConfiguring persistent journal storage..."
+loginctl enable-linger "$USER" && echo "Lingering enabled for $USER."
+sudo mkdir -p /var/log/journal
+sudo systemctl restart systemd-journald
+echo "Persistent journal storage configured — journalctl --user -u touchtheo.service will work."
+
 # Export display variables
 echo -e "\nExporting display variables..."
 

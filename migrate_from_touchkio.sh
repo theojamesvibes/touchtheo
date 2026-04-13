@@ -342,6 +342,16 @@ run "systemctl --user daemon-reload"
 run "systemctl --user enable touchtheo.service"
 success "touchtheo.service enabled."
 
+# Enable user session lingering so the user service and its journal persist
+if $DRY_RUN; then
+  info "[dry-run] Would enable lingering and configure persistent journal"
+else
+  loginctl enable-linger "$USER" && success "Lingering enabled for ${USER}."
+  sudo mkdir -p /var/log/journal
+  sudo systemctl restart systemd-journald
+  success "Persistent journal storage configured — journalctl --user -u touchtheo.service will work."
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 step "Starting TouchTheo"
 # ─────────────────────────────────────────────────────────────────────────────
@@ -357,7 +367,7 @@ success "touchtheo.service started."
 sleep 2
 if ! $DRY_RUN && ! systemctl --user --quiet is-active touchtheo.service 2>/dev/null; then
   warn "TouchTheo service does not appear to be running after start."
-  warn "Check the logs with:  journalctl _SYSTEMD_USER_UNIT=touchtheo.service -n 50"
+  warn "Check the logs with:  journalctl --user -u touchtheo.service -n 50"
 else
   success "touchtheo.service is active."
 fi
@@ -368,7 +378,7 @@ echo -e "\n${GREEN}${BOLD}Migration complete!${RESET}"
 echo
 echo -e "  TouchTheo config: ${CYAN}${TOUCHTHEO_CONFIG}/${RESET}"
 echo -e "  Service status:   ${CYAN}systemctl --user status touchtheo.service${RESET}"
-echo -e "  Live logs:        ${CYAN}journalctl _SYSTEMD_USER_UNIT=touchtheo.service -f${RESET}"
+echo -e "  Live logs:        ${CYAN}journalctl --user -u touchtheo.service -f${RESET}"
 echo
 echo -e "  TouchKio is still installed. To remove it run:"
 echo -e "    ${YELLOW}bash cleanup_touchkio.sh${RESET}"
