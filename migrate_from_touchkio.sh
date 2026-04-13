@@ -309,16 +309,21 @@ EXEC_START="/usr/bin/touchtheo${EXTRA_FLAGS:+ $EXTRA_FLAGS}"
 
 SERVICE_CONTENT="[Unit]
 Description=TouchTheo
-After=graphical.target
-Wants=network-online.target
+After=graphical-session.target
+Wants=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 ExecStart=${EXEC_START}
 Restart=on-failure
-RestartSec=5s
+RestartSec=10s
 
 [Install]
-WantedBy=default.target"
+WantedBy=graphical-session.target"
 
 if [[ -f "$TOUCHTHEO_SERVICE_FILE" ]]; then
   warn "Service file already exists: ${TOUCHTHEO_SERVICE_FILE}"

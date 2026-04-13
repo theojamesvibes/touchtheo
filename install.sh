@@ -57,16 +57,21 @@ mkdir -p "$(dirname "$SERVICE_FILE")" || { echo "Failed to create directory for 
 
 SERVICE_CONTENT="[Unit]
 Description=TouchTheo
-After=graphical.target
-Wants=network-online.target
+After=graphical-session.target
+Wants=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 ExecStart=/usr/bin/touchtheo
 Restart=on-failure
-RestartSec=5s
+RestartSec=10s
 
 [Install]
-WantedBy=default.target"
+WantedBy=graphical-session.target"
 
 if $ARG_UPDATE; then
   if systemctl --user --quiet is-active "${SERVICE_NAME}"; then
