@@ -108,8 +108,12 @@ command -v wget &>/dev/null || die "wget is required but not found. Install it w
 # apt must be available
 command -v apt &>/dev/null || die "apt package manager not found."
 
-# Node.js must be available (for password re-encryption)
-command -v node &>/dev/null || die "node is required for password migration but was not found."
+# Node.js must be available (for password re-encryption); install if missing
+if ! command -v node &>/dev/null; then
+  info "node not found — installing via apt..."
+  sudo apt-get install -y nodejs || die "Could not install nodejs automatically. Install it manually with: sudo apt install nodejs"
+  command -v node &>/dev/null || die "nodejs was installed but 'node' is still not in PATH — try opening a new shell and re-running."
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Stopping TouchKio service"
