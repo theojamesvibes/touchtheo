@@ -177,5 +177,5 @@ echo -e "\n${GREEN}${BOLD}TouchKio cleanup complete!${RESET}"
 echo
 echo -e "  TouchTheo config: ${CYAN}$HOME/.config/touchtheo/${RESET}"
 echo -e "  Service status:   ${CYAN}systemctl --user status touchtheo.service${RESET}"
-echo -e "  Live logs:        ${CYAN}journalctl --user -u touchtheo.service -f${RESET}"
+echo -e "  Live logs:        ${CYAN}journalctl _SYSTEMD_USER_UNIT=touchtheo.service -f${RESET}"
 echo
