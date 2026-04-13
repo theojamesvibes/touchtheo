@@ -8,6 +8,26 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.2] — 2026-04-13
+
+### Fixed
+- `migrate_from_touchkio.sh` / `install.sh`: changed service `WantedBy` from
+  `graphical-session.target` to `default.target` — `graphical-session.target`
+  is not automatically activated on Raspberry Pi OS so the service would never
+  start. Using `default.target` with `StartLimitBurst=30` / `StartLimitIntervalSec=300`
+  lets systemd retry every 10 s for up to 5 minutes until the display is ready.
+- `migrate_from_touchkio.sh`: use `systemctl --user restart` instead of `start`
+  when the service is already running, so re-running the script actually
+  applies the new service file.
+- `migrate_from_touchkio.sh`: skip `.deb` download and install when the latest
+  GitHub release version already matches the installed version.
+- `migrate_from_touchkio.sh` / `install.sh`: added `systemd-tmpfiles --create`
+  and a `Storage=persistent` journald drop-in so `journalctl --user -u
+  touchtheo.service` works correctly after a reboot (a reboot is required for
+  the persistent journal to take effect on existing installs).
+
+---
+
 ## [1.5.1] — 2026-04-11
 
 ### Added

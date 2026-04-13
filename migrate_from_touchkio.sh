@@ -151,16 +151,29 @@ if [[ -z "$DEB_URL" ]]; then
 fi
 
 DEB_FILE="${TMP_DIR}/$(basename "$DEB_URL")"
-info "Downloading: $DEB_URL"
-run "wget --show-progress -q -O '$DEB_FILE' '$DEB_URL'" || die "Download failed."
-success "Downloaded: $(basename "$DEB_FILE")"
+LATEST_VER=$(basename "$DEB_URL" | grep -oP "(?<=touchtheo_)[\d.]+(?=_${ARCH}\.deb)" || echo "")
+INSTALLED_VER=$(dpkg-query -W -f='${Version}' "$TOUCHTHEO_NAME" 2>/dev/null || echo "")
+SKIP_INSTALL=false
+
+if [[ -n "$LATEST_VER" && "$LATEST_VER" == "$INSTALLED_VER" ]]; then
+  info "TouchTheo ${LATEST_VER} is already installed — skipping download."
+  SKIP_INSTALL=true
+else
+  info "Downloading: $DEB_URL"
+  run "wget --show-progress -q -O '$DEB_FILE' '$DEB_URL'" || die "Download failed."
+  success "Downloaded: $(basename "$DEB_FILE")"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Installing TouchTheo"
 # ─────────────────────────────────────────────────────────────────────────────
 
-run "sudo apt install -y '$DEB_FILE'" || die "apt install failed."
-success "TouchTheo installed."
+if $SKIP_INSTALL; then
+  info "Skipping install — TouchTheo ${LATEST_VER} is already up to date."
+else
+  run "sudo apt install -y '$DEB_FILE'" || die "apt install failed."
+  success "TouchTheo installed."
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Migrating configuration"
@@ -309,10 +322,9 @@ EXEC_START="/usr/bin/touchtheo${EXTRA_FLAGS:+ $EXTRA_FLAGS}"
 
 SERVICE_CONTENT="[Unit]
 Description=TouchTheo
-After=graphical-session.target
-Wants=graphical-session.target
-StartLimitIntervalSec=60
-StartLimitBurst=3
+After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=30
 
 [Service]
 Environment=DISPLAY=:0
@@ -323,7 +335,7 @@ Restart=on-failure
 RestartSec=10s
 
 [Install]
-WantedBy=graphical-session.target"
+WantedBy=default.target"
 
 if [[ -f "$TOUCHTHEO_SERVICE_FILE" ]]; then
   warn "Service file already exists: ${TOUCHTHEO_SERVICE_FILE}"
@@ -352,7 +364,8 @@ else
   sudo mkdir -p /etc/systemd/journald.conf.d
   echo -e "[Journal]\nStorage=persistent" | sudo tee /etc/systemd/journald.conf.d/persistent.conf > /dev/null
   sudo systemctl restart systemd-journald
-  success "Persistent journal storage configured — journalctl --user -u touchtheo.service will work."
+  success "Persistent journal storage configured."
+  warn "A reboot is recommended for journalctl --user to take effect."
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -363,14 +376,20 @@ step "Starting TouchTheo"
 export DISPLAY="${DISPLAY:-:0}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
-run "systemctl --user start touchtheo.service"
-success "touchtheo.service started."
+if ! $DRY_RUN && systemctl --user --quiet is-active touchtheo.service 2>/dev/null; then
+  run "systemctl --user restart touchtheo.service"
+  success "touchtheo.service restarted."
+else
+  run "systemctl --user start touchtheo.service"
+  success "touchtheo.service started."
+fi
 
 # Brief pause to catch immediate failures
-sleep 2
+sleep 3
 if ! $DRY_RUN && ! systemctl --user --quiet is-active touchtheo.service 2>/dev/null; then
-  warn "TouchTheo service does not appear to be running after start."
+  warn "TouchTheo service is not yet active — it will keep retrying until the display is ready."
   warn "Check the logs with:  journalctl --user -u touchtheo.service -n 50"
+  warn "Or reboot if this is a fresh install."
 else
   success "touchtheo.service is active."
 fi
