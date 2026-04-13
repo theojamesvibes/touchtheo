@@ -348,6 +348,9 @@ if $DRY_RUN; then
 else
   loginctl enable-linger "$USER" && success "Lingering enabled for ${USER}."
   sudo mkdir -p /var/log/journal
+  sudo systemd-tmpfiles --create --prefix /var/log/journal
+  sudo mkdir -p /etc/systemd/journald.conf.d
+  echo -e "[Journal]\nStorage=persistent" | sudo tee /etc/systemd/journald.conf.d/persistent.conf > /dev/null
   sudo systemctl restart systemd-journald
   success "Persistent journal storage configured — journalctl --user -u touchtheo.service will work."
 fi
