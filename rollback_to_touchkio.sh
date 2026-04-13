@@ -135,7 +135,7 @@ success "touchkio.service started."
 sleep 2
 if ! $DRY_RUN && ! systemctl --user --quiet is-active touchkio.service 2>/dev/null; then
   warn "TouchKio service does not appear to be running after start."
-  warn "Check the logs with:  journalctl --user -u touchkio.service -n 50"
+  warn "Check the logs with:  journalctl _SYSTEMD_USER_UNIT=touchkio.service -n 50"
 else
   success "touchkio.service is active."
 fi
@@ -187,5 +187,5 @@ echo -e "\n${GREEN}${BOLD}Rollback complete!${RESET}"
 echo
 echo -e "  TouchKio config: ${CYAN}${TOUCHKIO_CONFIG}/${RESET}"
 echo -e "  Service status:  ${CYAN}systemctl --user status touchkio.service${RESET}"
-echo -e "  Live logs:       ${CYAN}journalctl --user -u touchkio.service -f${RESET}"
+echo -e "  Live logs:       ${CYAN}journalctl _SYSTEMD_USER_UNIT=touchkio.service -f${RESET}"
 echo
