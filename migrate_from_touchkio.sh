@@ -318,7 +318,7 @@ if [[ -f "$TOUCHKIO_SERVICE_FILE" ]]; then
   fi
 fi
 
-EXEC_START="/usr/bin/touchtheo --no-sandbox${EXTRA_FLAGS:+ $EXTRA_FLAGS}"
+EXEC_START="/usr/bin/touchtheo${EXTRA_FLAGS:+ $EXTRA_FLAGS}"
 
 SERVICE_CONTENT="[Unit]
 Description=TouchTheo

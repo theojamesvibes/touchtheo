@@ -8,6 +8,20 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.6] — 2026-04-14
+
+### Fixed
+- **`--no-sandbox` moved from service file into app code** — passing `--no-sandbox`
+  via `ExecStart` caused it to appear in `process.argv` where the app's own argument
+  parser treated it as a config key, clearing the `web_url` setting and crashing on
+  every start. The flag is now applied via `app.commandLine.appendSwitch('no-sandbox')`
+  in `index.js` before `app.whenReady()`, so Chromium receives it without it ever
+  touching `process.argv`.
+- **Service file templates updated** — `--no-sandbox` removed from `ExecStart` in
+  `install.sh` and `migrate_from_touchkio.sh`.
+
+---
+
 ## [1.5.5] — 2026-04-14
 
 ### Fixed
