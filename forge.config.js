@@ -46,7 +46,7 @@ module.exports = {
           owner: "theojamesvibes",
           name: "touchtheo",
         },
-        draft: true,
+        draft: false,
       },
     },
   ],
