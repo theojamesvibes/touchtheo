@@ -8,6 +8,20 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.5] — 2026-04-14
+
+### Fixed
+- **Logging now reliably appears in journalctl** — electron-log's default console
+  transport routes output through Electron's V8 console object which does not
+  consistently flush to the file descriptor that systemd/journald watches. The
+  console transport is now replaced with a custom function that calls
+  `process.stdout.write()` / `process.stderr.write()` directly, bypassing
+  Electron's console layer entirely. The startup version line also writes via
+  `process.stdout.write()` so it appears before the rest of the log pipeline
+  is fully initialised.
+
+---
+
 ## [1.5.4] — 2026-04-13
 
 ### Fixed
