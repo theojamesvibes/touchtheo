@@ -8,6 +8,19 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.9] — 2026-04-14
+
+### Fixed
+- **`/dev/shm` permissions set during install and migration** — Chromium running
+  without the seccomp sandbox (`--no-sandbox`) accesses `/dev/shm` directly for
+  inter-process shared memory. If the directory lacks `1777` permissions, renderer
+  subprocesses crash immediately with `ESRCH` on shared memory creation. Both
+  `install.sh` and `migrate_from_touchkio.sh` now run `sudo chmod 1777 /dev/shm`
+  and write `/etc/tmpfiles.d/shm.conf` so the correct permissions are restored on
+  every boot.
+
+---
+
 ## [1.5.8] — 2026-04-14
 
 ### Fixed
