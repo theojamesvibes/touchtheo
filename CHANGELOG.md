@@ -8,6 +8,19 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.8] — 2026-04-14
+
+### Fixed
+- **Unrecognised flags no longer corrupt argument handling** — `parseArgs` now
+  filters its output against a whitelist of known argument keys (`KNOWN_ARGS`).
+  Previously, Chromium flags that leaked into `process.argv` (e.g. `no-sandbox`
+  when passed via `ExecStart`) were treated as app arguments, setting
+  `argsProvided = true` and preventing setup from running, which left
+  `web_url` empty and caused a crash loop. Any flag not in `KNOWN_ARGS` is now
+  silently dropped before it can affect argument handling or saved config.
+
+---
+
 ## [1.5.7] — 2026-04-14
 
 ### Fixed
