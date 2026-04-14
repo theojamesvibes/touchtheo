@@ -23,17 +23,8 @@ if (!process.env.DISPLAY) {
   process.exit(1);
 }
 
-// Move electron log file
-const elog = path.join(app.getPath("logs"), "electron.log");
-try {
-  if (fs.existsSync(elog)) {
-    fs.renameSync(elog, elog.replace(".log", ".old.log"));
-  }
-  console.debug = () => {};
-} catch (error) {
-  console.error("Failed to move electron log file:", error.message);
-}
-app.commandLine.appendSwitch("log-file", elog);
+// Suppress debug output before electron-log takes over
+console.debug = () => {};
 
 /**
  * This promise resolves when the app has finished initializing,
@@ -44,6 +35,9 @@ app.whenReady().then(async () => {
   if (!(await initApp()) || !(await initArgs()) || !(await initLog())) {
     return;
   }
+
+  // Log version on every startup
+  console.info(`${APP.title} v${APP.version} starting`);
 
   // Show used arguments
   const args = Object.assign({}, ARGS);
@@ -218,21 +212,10 @@ const initArgs = async () => {
  * @returns {bool} Returns true if the initialization was successful.
  */
 const initLog = async () => {
-  try {
-    if (fs.existsSync(APP.log)) {
-      fs.renameSync(APP.log, APP.log.replace(".log", ".old.log"));
-    }
-  } catch (error) {
-    console.error("Failed to move main log file:", error.message);
-  }
-
-  // Set log level and path
+  // Set log level — file transport disabled, all output goes to stdout/stderr (journald)
   const level = "enable_logging" in ARGS ? "silly" : "app_debug" in ARGS ? "debug" : "verbose";
-  log.transports.file.level = level;
+  log.transports.file.level = false;
   log.transports.console.level = level;
-  log.transports.file.resolvePathFn = () => {
-    return APP.log;
-  };
 
   // Catch unhandled errors
   log.errorHandler.startCatching({

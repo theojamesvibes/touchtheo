@@ -8,6 +8,23 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.4] — 2026-04-13
+
+### Fixed
+- **Logging now goes to systemd journal** — `app.commandLine.appendSwitch("log-file", ...)`
+  was redirecting the entire process stdout to `~/.config/touchtheo/logs/electron.log`,
+  which caused `journalctl --user -u touchtheo.service` to receive nothing. Removed the
+  Chromium log-file redirect and disabled electron-log's file transport entirely. All
+  output now goes to stdout/stderr, captured by systemd as intended. The
+  `~/.config/touchtheo/logs/` directory is no longer created.
+- **Version logged on every startup** — `TouchTheo vX.Y.Z starting` is now the first
+  info-level log entry after initialisation, visible in the journal immediately.
+- **MQTT connection logged** — MQTT Connecting / Connected / Disconnected / Error events
+  were already in the code but were invisible due to the stdout redirect; they now appear
+  in the journal correctly.
+
+---
+
 ## [1.5.3] — 2026-04-13
 
 ### Fixed
