@@ -217,15 +217,6 @@ touchtheo --web-url=http://192.168.1.42:8123 --mqtt-url=mqtt://192.168.1.42:1883
 ## User Interface
 TouchTheo provides a simple webview window designed specifically for Touch Displays. Electron apps are known to be resource intensive due to their architecture and the inclusion of a full web browser environment. If you just run the kiosk application without other heavy loads, everything should run smoothly.
 
-### Touch Controls
-Additional controls can be found along the right edge of the kiosk application. For more details, you may want to have a closer look here:
-| Name         | Description                                              |
-| ------------ | -------------------------------------------------------- |
-| `Widget`     | [See #16](https://github.com/theojamesvibes/touchtheo/issues/16) |
-| `Navigation` | [See #45](https://github.com/theojamesvibes/touchtheo/issues/45) |
-| `Pager`      | [See #64](https://github.com/theojamesvibes/touchtheo/issues/64) |
-
-
 ### Keyboard Shortcuts
 The application also supports basic shortcuts to enhance navigation and usability for users who prefer or require non-touch input methods:
 | Name                        | Description                  |

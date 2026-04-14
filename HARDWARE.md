@@ -56,7 +56,7 @@ If you are running Linux with a graphical user interface (Wayland or X11), you s
 **Extended features** become available when the `--mqtt-*` arguments are provided and the hardware is supported:
 - If your hardware is not fully compatible there should be no crashes, but you may miss some sensors.
 
-Hardware support is verified during application startup and can be checked in the terminal or in the log file under the `Supported` section.
+Hardware support is verified during application startup and can be checked in the terminal or via `journalctl --user -u touchtheo.service` under the `Supported` section.
 The necessary requirements for MQTT sensors to work are listed here:
 | Name                 | Requirements                                                                                                  | References                                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
