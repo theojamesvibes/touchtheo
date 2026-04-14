@@ -8,6 +8,23 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.12] — 2026-04-14
+
+### Fixed
+- **Wake tap no longer triggers HA actions when using swayidle** — when
+  `swayidle` blanks the screen and a touch wakes it, the Wayland compositor
+  turns the display on immediately. If the 1-second polling cycle happened to
+  run between the physical wake and Electron processing the `mouseDown` event,
+  the tracker would already show the display as ON and the tap protection would
+  fail, passing the wake tap through to the webview. Fixed by setting a
+  `waking` flag on every OFF→ON transition detected by polling. The first
+  `mouseDown` after a wake consumes and clears the flag, discarding the tap
+  regardless of polling timing. Only one tap per wake cycle is discarded;
+  subsequent touches work normally. (Fixes
+  [TouchKio #197](https://github.com/leukipp/touchkio/issues/197))
+
+---
+
 ## [1.5.11] — 2026-04-14
 
 ### Fixed
