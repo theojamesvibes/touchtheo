@@ -14,10 +14,12 @@ const Events = require("events");
 // flag is applied to Chromium without appearing in process.argv, which
 // would confuse the app's own argument parser.
 app.commandLine.appendSwitch("no-sandbox");
-// Without the sandbox, Chromium renderer processes can end up in a different
-// PID namespace from the process that created the /dev/shm file, producing
-// ESRCH errors on shared-memory creation. Redirect shared memory to /tmp.
-app.commandLine.appendSwitch("disable-dev-shm-usage");
+// With --no-sandbox, Chromium's zygote forks renderer processes that end up
+// in a different PID namespace from the browser process, causing ESRCH on
+// shared memory creation and leaving the screen white. --no-zygote makes
+// Chromium spawn renderers as fresh processes instead of zygote forks,
+// avoiding the namespace mismatch. Standard fix for service/container use.
+app.commandLine.appendSwitch("no-zygote");
 
 global.APP = global.APP || {};
 global.ARGS = global.ARGS || {};

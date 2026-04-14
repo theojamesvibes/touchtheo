@@ -8,6 +8,20 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.11] — 2026-04-14
+
+### Fixed
+- **`--no-zygote` replaces `--disable-dev-shm-usage`** — with `--no-sandbox`,
+  Chromium's zygote process forks renderer processes that end up in a different
+  PID namespace from the browser process, causing `ESRCH` on shared memory
+  creation regardless of whether `/dev/shm` or `/tmp` is used, leaving the
+  window blank white. `--no-zygote` makes Chromium spawn renderer processes
+  directly instead of via zygote forks, avoiding the namespace mismatch.
+  This is the standard fix for running Chromium in systemd service / container
+  environments.
+
+---
+
 ## [1.5.10] — 2026-04-14
 
 ### Fixed
