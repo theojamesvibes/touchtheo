@@ -9,6 +9,14 @@ const log = require("electron-log");
 const { app, powerMonitor } = require("electron");
 const Events = require("events");
 
+// Known argument keys accepted by this app. Defined here (before app.whenReady)
+// so the Chromium flag forwarding block below can reference it.
+const KNOWN_ARGS = new Set([
+  "web_url", "web_theme", "web_zoom", "web_widget",
+  "mqtt_url", "mqtt_user", "mqtt_password", "mqtt_discovery",
+  "setup", "help", "version", "app_reset",
+]);
+
 // Required on Raspberry Pi OS — the kernel namespace restrictions cause
 // Chromium's seccomp sandbox to send SIGTRAP and crash. Set here so the
 // flag is applied to Chromium without appearing in process.argv, which
@@ -20,6 +28,21 @@ app.commandLine.appendSwitch("no-sandbox");
 // Chromium spawn renderers as fresh processes instead of zygote forks,
 // avoiding the namespace mismatch. Standard fix for service/container use.
 app.commandLine.appendSwitch("no-zygote");
+
+// Forward any unrecognised CLI flags to Chromium. This allows flags like
+// --disable-gpu and --disable-features=UseDNSHttps,AsyncDns to be passed
+// via ExecStart or the command line and still reach Chromium, even though
+// they are not TouchTheo app arguments. Flags we already apply manually
+// above are excluded to avoid double-application.
+const CHROMIUM_MANAGED = new Set(["no-sandbox", "no-zygote"]);
+process.argv.slice(1).forEach((arg) => {
+  const match = arg.match(/^--?([^=]+)(?:=(.*))?$/);
+  if (!match) return;
+  const key = match[1];
+  if (!KNOWN_ARGS.has(key.replace(/-/g, "_")) && !CHROMIUM_MANAGED.has(key)) {
+    app.commandLine.appendSwitch(key, match[2] ?? undefined);
+  }
+});
 
 global.APP = global.APP || {};
 global.ARGS = global.ARGS || {};
@@ -293,18 +316,10 @@ const initLog = async () => {
   return true;
 };
 
-// Known argument keys accepted by this app. Any key not in this list (e.g. Chromium
-// flags that leak into process.argv) is silently ignored so it never sets argsProvided=true
-// or overwrites saved settings.
-const KNOWN_ARGS = new Set([
-  "web_url", "web_theme", "web_zoom", "web_widget",
-  "mqtt_url", "mqtt_user", "mqtt_password", "mqtt_discovery",
-  "setup", "help", "version", "app_reset",
-]);
-
 /**
  * Parses command-line arguments from the given process object.
- * Only keys listed in KNOWN_ARGS are returned; unrecognised flags are dropped.
+ * Only keys listed in KNOWN_ARGS are returned; unrecognised flags are
+ * forwarded to Chromium via app.commandLine at startup (see top of file).
  *
  * @param {Object} proc - The process object.
  * @returns {Object} An object mapping argument names to their corresponding values.

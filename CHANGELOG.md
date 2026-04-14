@@ -8,6 +8,20 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.13] — 2026-04-14
+
+### Fixed
+- **Chromium flags passed via `ExecStart` or CLI are forwarded correctly** —
+  the `KNOWN_ARGS` filter introduced in v1.5.8 silently dropped any flag not
+  in the app argument whitelist, breaking user-facing Chromium flags documented
+  in `HARDWARE.md` such as `--disable-gpu` and
+  `--disable-features=UseDNSHttps,AsyncDns`. Unrecognised flags are now
+  forwarded to Chromium via `app.commandLine.appendSwitch()` at startup
+  instead of being dropped. Flags managed internally (`--no-sandbox`,
+  `--no-zygote`) are excluded from forwarding to avoid double-application.
+
+---
+
 ## [1.5.12] — 2026-04-14
 
 ### Fixed
