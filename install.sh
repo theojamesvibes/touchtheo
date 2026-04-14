@@ -65,6 +65,7 @@ StartLimitBurst=30
 Environment=DISPLAY=:0
 Environment=WAYLAND_DISPLAY=wayland-0
 Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=XAUTHORITY=%h/.Xauthority
 ExecStart=/usr/bin/touchtheo
 Restart=on-failure
 RestartSec=10s

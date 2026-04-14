@@ -8,6 +8,16 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.3] — 2026-04-13
+
+### Fixed
+- `migrate_from_touchkio.sh` / `install.sh`: add `XAUTHORITY=%h/.Xauthority` to
+  the service file template. Without this, X11 refuses connections from user
+  services (no auth cookie), which causes Electron to fail silently — the
+  journal shows "Started" but nothing appears on screen.
+
+---
+
 ## [1.5.2] — 2026-04-13
 
 ### Fixed
