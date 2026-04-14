@@ -36,8 +36,8 @@ app.whenReady().then(async () => {
     return;
   }
 
-  // Log version on every startup
-  console.info(`${APP.title} v${APP.version} starting`);
+  // Log version on every startup — write directly to stdout so journald always captures it
+  process.stdout.write(`${APP.title} v${APP.version} starting\n`);
 
   // Show used arguments
   const args = Object.assign({}, ARGS);
@@ -212,9 +212,28 @@ const initArgs = async () => {
  * @returns {bool} Returns true if the initialization was successful.
  */
 const initLog = async () => {
-  // Set log level — file transport disabled, all output goes to stdout/stderr (journald)
   const level = "enable_logging" in ARGS ? "silly" : "app_debug" in ARGS ? "debug" : "verbose";
+
+  // Disable file transport entirely — no ~/.config/touchtheo/logs/ created
   log.transports.file.level = false;
+
+  // Replace the console transport with a function that writes directly to
+  // process.stdout / process.stderr so journald captures every line reliably.
+  // electron-log's default console transport routes through Electron's V8
+  // console object which does not always flush to the fd that systemd watches.
+  log.transports.console = (msg) => {
+    const text = msg.data
+      .map((d) => (typeof d === "object" ? (d?.message ? String(d.message) : JSON.stringify(d)) : String(d)))
+      .filter((s) => s && s.trim())
+      .join(" ");
+    if (!text || text.startsWith("(node:")) return;
+    const line = `[${msg.level.toUpperCase().padEnd(7)}] ${text}\n`;
+    if (["error", "warn"].includes(msg.level)) {
+      process.stderr.write(line);
+    } else {
+      process.stdout.write(line);
+    }
+  };
   log.transports.console.level = level;
 
   // Catch unhandled errors
