@@ -8,6 +8,18 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.10] — 2026-04-14
+
+### Fixed
+- **`--disable-dev-shm-usage` added alongside `--no-sandbox`** — without the
+  Chromium sandbox, renderer processes can end up in a different PID namespace
+  from the process that created the `/dev/shm` shared memory file, causing
+  `ESRCH` ("no such process") errors that crash every renderer immediately after
+  launch. `--disable-dev-shm-usage` redirects Chromium's shared memory to `/tmp`,
+  bypassing the namespace mismatch entirely.
+
+---
+
 ## [1.5.9] — 2026-04-14
 
 ### Fixed
