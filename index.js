@@ -14,6 +14,10 @@ const Events = require("events");
 // flag is applied to Chromium without appearing in process.argv, which
 // would confuse the app's own argument parser.
 app.commandLine.appendSwitch("no-sandbox");
+// Without the sandbox, Chromium renderer processes can end up in a different
+// PID namespace from the process that created the /dev/shm file, producing
+// ESRCH errors on shared-memory creation. Redirect shared memory to /tmp.
+app.commandLine.appendSwitch("disable-dev-shm-usage");
 
 global.APP = global.APP || {};
 global.ARGS = global.ARGS || {};
