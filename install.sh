@@ -66,7 +66,7 @@ Environment=DISPLAY=:0
 Environment=WAYLAND_DISPLAY=wayland-0
 Environment=XDG_RUNTIME_DIR=/run/user/%U
 Environment=XAUTHORITY=%h/.Xauthority
-ExecStart=/usr/bin/touchtheo
+ExecStart=/usr/bin/touchtheo --no-sandbox
 StandardOutput=journal
 StandardError=journal
 Restart=on-failure
