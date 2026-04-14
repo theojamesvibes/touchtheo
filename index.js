@@ -287,8 +287,18 @@ const initLog = async () => {
   return true;
 };
 
+// Known argument keys accepted by this app. Any key not in this list (e.g. Chromium
+// flags that leak into process.argv) is silently ignored so it never sets argsProvided=true
+// or overwrites saved settings.
+const KNOWN_ARGS = new Set([
+  "web_url", "web_theme", "web_zoom", "web_widget",
+  "mqtt_url", "mqtt_user", "mqtt_password", "mqtt_discovery",
+  "setup", "help", "version", "app_reset",
+]);
+
 /**
  * Parses command-line arguments from the given process object.
+ * Only keys listed in KNOWN_ARGS are returned; unrecognised flags are dropped.
  *
  * @param {Object} proc - The process object.
  * @returns {Object} An object mapping argument names to their corresponding values.
@@ -298,7 +308,9 @@ const parseArgs = (proc) => {
   return Object.fromEntries(
     args.flatMap((arg) => {
       const match = arg.match(/^--?([^=]+)(?:=(.*))?$/);
-      return match ? [[match[1].replace(/-/g, "_"), match[2] ?? null]] : [];
+      if (!match) return [];
+      const key = match[1].replace(/-/g, "_");
+      return KNOWN_ARGS.has(key) ? [[key, match[2] ?? null]] : [];
     }),
   );
 };
