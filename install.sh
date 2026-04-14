@@ -25,6 +25,42 @@ esac
 [ "$BITS" -eq 64 ] || { echo "Architecture $ARCH running $BITS-bit operating system is not supported."; exit 1; }
 echo "Architecture $ARCH running $BITS-bit operating system is supported."
 
+# update-service only rewrites the service file — no download or install needed
+if $ARG_UPDATE_SERVICE; then
+  SERVICE_NAME="touchtheo.service"
+  SERVICE_FILE="$HOME/.config/systemd/user/$SERVICE_NAME"
+  mkdir -p "$(dirname "$SERVICE_FILE")" || { echo "Failed to create directory for $SERVICE_FILE."; exit 1; }
+  SERVICE_CONTENT="[Unit]
+Description=TouchTheo
+After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=30
+
+[Service]
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=XAUTHORITY=%h/.Xauthority
+ExecStart=/usr/bin/touchtheo
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=default.target"
+  echo "$SERVICE_CONTENT" > "$SERVICE_FILE" || { echo "Failed to write to $SERVICE_FILE."; exit 1; }
+  systemctl --user daemon-reload
+  if systemctl --user --quiet is-active "${SERVICE_NAME}"; then
+    systemctl --user restart "${SERVICE_NAME}"
+    echo "Service file updated and $SERVICE_NAME restarted."
+  else
+    systemctl --user start "${SERVICE_NAME}"
+    echo "Service file updated and $SERVICE_NAME started."
+  fi
+  exit 0
+fi
+
 # Download the latest .deb package
 echo -e "\nDownloading the latest release..."
 
@@ -39,16 +75,23 @@ else
 fi
 
 DEB_URL=$(echo "$JSON" | grep -oP "$DEB_REG" | head -n 1)
-DEB_PATH="${TMP_DIR}/$(basename "$DEB_URL")"
-
 [ -z "$DEB_URL" ] && { echo "Download url for .deb file not found."; exit 1; }
-wget --show-progress -q -O "$DEB_PATH" "$DEB_URL" || { echo "Failed to download the .deb file."; exit 1; }
 
-# Install the latest .deb package
-echo -e "\nInstalling the latest release..."
+LATEST_VER=$(basename "$DEB_URL" | grep -oP "(?<=touchtheo_)[\d.]+(?=_${ARCH}\.deb)")
+INSTALLED_VER=$(dpkg-query -W -f='${Version}' touchtheo 2>/dev/null || echo "")
 
-command -v apt &> /dev/null || { echo "Package manager apt was not found."; exit 1; }
-sudo apt install -y "$DEB_PATH" || { echo "Installation of .deb file failed."; exit 1; }
+if $ARG_UPDATE && [[ -n "$LATEST_VER" && "$LATEST_VER" == "$INSTALLED_VER" ]]; then
+  echo "TouchTheo ${LATEST_VER} is already installed — skipping download."
+else
+  DEB_PATH="${TMP_DIR}/$(basename "$DEB_URL")"
+  wget --show-progress -q -O "$DEB_PATH" "$DEB_URL" || { echo "Failed to download the .deb file."; exit 1; }
+
+  # Install the latest .deb package
+  echo -e "\nInstalling the latest release..."
+
+  command -v apt &> /dev/null || { echo "Package manager apt was not found."; exit 1; }
+  sudo apt install -y "$DEB_PATH" || { echo "Installation of .deb file failed."; exit 1; }
+fi
 
 # Create the systemd user service
 echo -e "\nCreating systemd user service..."
@@ -87,18 +130,6 @@ if $ARG_UPDATE; then
   exit 0
 fi
 
-if $ARG_UPDATE_SERVICE; then
-  echo "$SERVICE_CONTENT" > "$SERVICE_FILE" || { echo "Failed to write to $SERVICE_FILE."; exit 1; }
-  systemctl --user daemon-reload
-  if systemctl --user --quiet is-active "${SERVICE_NAME}"; then
-    systemctl --user restart "${SERVICE_NAME}"
-    echo "Service file updated and $SERVICE_NAME restarted."
-  else
-    systemctl --user start "${SERVICE_NAME}"
-    echo "Service file updated and $SERVICE_NAME started."
-  fi
-  exit 0
-fi
 
 SERVICE_CREATE=true
 if [ -f "$SERVICE_FILE" ]; then

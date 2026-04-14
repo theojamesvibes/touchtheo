@@ -8,6 +8,17 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.7] — 2026-04-14
+
+### Fixed
+- **`update` and `update-service` modes no longer download the `.deb` unnecessarily** —
+  `update-service` now exits immediately after rewriting the service file without
+  ever hitting the GitHub API or downloading anything. `update` checks the installed
+  version (`dpkg-query`) against the latest GitHub release version and skips the
+  download if they already match.
+
+---
+
 ## [1.5.6] — 2026-04-14
 
 ### Fixed
