@@ -145,6 +145,13 @@ else
     echo "Service $SERVICE_FILE not created."
 fi
 
+# Fix /dev/shm permissions — Chromium (no-sandbox) requires 1777
+echo -e "\nFixing /dev/shm permissions for Chromium..."
+sudo chmod 1777 /dev/shm
+sudo mkdir -p /etc/tmpfiles.d
+echo 'd /dev/shm 1777 root root -' | sudo tee /etc/tmpfiles.d/shm.conf > /dev/null
+echo "/dev/shm permissions fixed and persisted via tmpfiles.d."
+
 # Enable user session lingering so the user service and its journal persist
 echo -e "\nConfiguring persistent journal storage..."
 loginctl enable-linger "$USER" && echo "Lingering enabled for $USER."

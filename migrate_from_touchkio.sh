@@ -357,6 +357,16 @@ run "systemctl --user daemon-reload"
 run "systemctl --user enable touchtheo.service"
 success "touchtheo.service enabled."
 
+# Fix /dev/shm permissions — Chromium (no-sandbox) requires 1777
+if $DRY_RUN; then
+  info "[dry-run] Would fix /dev/shm permissions for Chromium"
+else
+  sudo chmod 1777 /dev/shm
+  sudo mkdir -p /etc/tmpfiles.d
+  echo 'd /dev/shm 1777 root root -' | sudo tee /etc/tmpfiles.d/shm.conf > /dev/null
+  success "/dev/shm permissions fixed and persisted via tmpfiles.d."
+fi
+
 # Enable user session lingering so the user service and its journal persist
 if $DRY_RUN; then
   info "[dry-run] Would enable lingering and configure persistent journal"
