@@ -18,7 +18,7 @@ const {
 global.WEBVIEW = global.WEBVIEW || {
   initialized: false,
   tracker: {
-    display: {},
+    display: { waking: false },
     pointer: {
       position: {},
       time: new Date(),
@@ -1170,15 +1170,20 @@ const viewEvents = async () => {
           switch (mouse.button) {
             case "left":
               const off = WEBVIEW.tracker.display.off > WEBVIEW.tracker.display.on;
-              console.debug(`webview.js: viewEvents(${i},display-${off ? "off" : "on"})`);
+              const waking = WEBVIEW.tracker.display.waking;
+              console.debug(`webview.js: viewEvents(${i},display-${off ? "off" : waking ? "waking" : "on"})`);
 
-              // Ignore touch event if display was off
-              if (off) {
+              // Ignore touch event if display was off or just woke (race: polling
+              // detected ON before this mouseDown fired, but it was still a wake tap)
+              if (off || waking) {
+                WEBVIEW.tracker.display.waking = false;
                 console.verbose("Display Touch Event: Ignored");
                 e.preventDefault();
 
                 // Turn display on if it was off
-                hardware.setDisplayStatus("ON");
+                if (off) {
+                  hardware.setDisplayStatus("ON");
+                }
               }
               break;
             case "back":
@@ -1206,7 +1211,14 @@ const appEvents = async () => {
   EVENTS.on("updateDisplay", () => {
     const status = hardware.getDisplayStatus();
     if (status) {
+      const wasOff = WEBVIEW.tracker.display.off > WEBVIEW.tracker.display.on;
       WEBVIEW.tracker.display[status.toLowerCase()] = new Date();
+      // If the display just transitioned OFF → ON (e.g. woken by swayidle resume),
+      // set the waking flag so the first touch is still discarded even though the
+      // tracker now shows ON. Clears on the next mouseDown.
+      if (wasOff && status === "ON") {
+        WEBVIEW.tracker.display.waking = true;
+      }
     }
   });
   EVENTS.on("updateStatus", () => {
