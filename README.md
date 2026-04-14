@@ -101,10 +101,19 @@ yarn build
 #### Update
 If you have already installed TouchTheo and want to upgrade to the latest version, simply install the newer version over the existing one.
 
-The [install.sh](https://github.com/theojamesvibes/touchtheo/blob/main/install.sh) script can also be run to update an existing installation to the **latest version**.
-The setup procedure can be skipped to use the existing default arguments from the configuration file:
+The [install.sh](https://github.com/theojamesvibes/touchtheo/blob/main/install.sh) script can also be run with arguments to update an existing installation without going through the full setup again:
+
+| Argument | Description |
+| --- | --- |
+| `update` | Downloads and installs the latest `.deb` (skipped if already current), then restarts the service |
+| `update-service` | Rewrites the systemd service file to the latest template and restarts the service — no download, useful after a service configuration change |
+
 ```bash
+# Update the application binary
 bash <(wget -qO- https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/install.sh) update
+
+# Update the service file only (no download)
+bash <(wget -qO- https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/install.sh) update-service
 ```
 
 #### Migrating from TouchKio
@@ -323,11 +332,21 @@ This adjustment provides a user experience similar to that of a proper mobile de
 > [!NOTE]
 > ### Please read the hardware [FAQ](https://github.com/theojamesvibes/touchtheo/blob/main/HARDWARE.md#faq) section first if you encounter any issues.
 
-For basic debugging **(TouchTheo)**, stop the service and launch `touchtheo` directly on the terminal to monitor the log output in real-time.
-This output is also written into `~/.config/touchtheo/logs/main.log` for review.
+All TouchTheo output goes to the **systemd journal** — no log files are written to disk. To follow the live log:
+```bash
+journalctl --user -u touchtheo.service -f
+```
 
-For extended logging **(Electron)** you can run `touchtheo --enable-logging`, which will write an additional log file into `~/.config/touchtheo/logs/electron.log`.
-Refer to the [--log-level=[0-3]](https://www.electronjs.org/docs/latest/api/command-line-switches#--log-leveln) and [--v=[0-3]](https://www.electronjs.org/docs/latest/api/command-line-switches#--vlog_level) options to adjust the logging verbosity.
+To review recent output without following:
+```bash
+journalctl --user -u touchtheo.service -n 100 --no-pager
+```
+
+For basic debugging **(TouchTheo)**, stop the service and launch `touchtheo` directly on the terminal with the display variables exported:
+```bash
+systemctl --user stop touchtheo.service
+DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/$(id -u) /usr/bin/touchtheo
+```
 
 If you need to debug the webview **(Chrome DevTools)** use `touchtheo --app-debug`.
 
