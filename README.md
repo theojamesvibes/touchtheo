@@ -354,9 +354,11 @@ TouchTheo is a fork/clean copy of **[TouchKio](https://github.com/leukipp/touchk
 
 ### Full Code Attribution — TouchKio
 
-**TouchTheo is built entirely upon [TouchKio](https://github.com/leukipp/touchkio)**, an outstanding open-source project by [@leukipp](https://github.com/leukipp) (leukipp).
+TouchTheo began as a fork of **[TouchKio](https://github.com/leukipp/touchkio)**, an outstanding open-source project by [@leukipp](https://github.com/leukipp) (leukipp), and owes its foundation entirely to that work.
 
-All original architecture, logic, features, and design decisions belong to TouchKio and its author. TouchTheo exists purely as a Raspberry Pi 5 optimised fork under a different project name. If TouchTheo is useful to you, please star and support the original project:
+Since the fork, TouchTheo has grown into an actively maintained and modernised project in its own right — with Raspberry Pi 5 optimisations, robust systemd service integration, seamless migration tooling, persistent logging, and a series of stability fixes that make it production-ready as a always-on kiosk. The codebase has been meaningfully extended and stabilised beyond the upstream baseline.
+
+That said, none of this would exist without TouchKio. If TouchTheo is useful to you, please star and support the original project:
 
 > **[https://github.com/leukipp/touchkio](https://github.com/leukipp/touchkio)** — original TouchKio repository  
 > Licensed under the [MIT License](https://github.com/leukipp/touchkio/blob/main/LICENSE)
