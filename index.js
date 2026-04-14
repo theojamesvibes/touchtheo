@@ -9,6 +9,12 @@ const log = require("electron-log");
 const { app, powerMonitor } = require("electron");
 const Events = require("events");
 
+// Required on Raspberry Pi OS — the kernel namespace restrictions cause
+// Chromium's seccomp sandbox to send SIGTRAP and crash. Set here so the
+// flag is applied to Chromium without appearing in process.argv, which
+// would confuse the app's own argument parser.
+app.commandLine.appendSwitch("no-sandbox");
+
 global.APP = global.APP || {};
 global.ARGS = global.ARGS || {};
 global.EVENTS = global.EVENTS || new Events();
