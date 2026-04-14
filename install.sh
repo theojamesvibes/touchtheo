@@ -3,10 +3,12 @@
 # Read arguments
 ARG_EARLY=false
 ARG_UPDATE=false
+ARG_UPDATE_SERVICE=false
 for arg in "$@"; do
   case "$arg" in
-    early) ARG_EARLY=true ;;
-    update) ARG_UPDATE=true ;;
+    early)          ARG_EARLY=true ;;
+    update)         ARG_UPDATE=true ;;
+    update-service) ARG_UPDATE_SERVICE=true ;;
   esac
 done
 
@@ -81,6 +83,19 @@ if $ARG_UPDATE; then
     echo "Existing $SERVICE_NAME restarted."
   else
     echo "Existing $SERVICE_NAME not running, start touchtheo manually."
+  fi
+  exit 0
+fi
+
+if $ARG_UPDATE_SERVICE; then
+  echo "$SERVICE_CONTENT" > "$SERVICE_FILE" || { echo "Failed to write to $SERVICE_FILE."; exit 1; }
+  systemctl --user daemon-reload
+  if systemctl --user --quiet is-active "${SERVICE_NAME}"; then
+    systemctl --user restart "${SERVICE_NAME}"
+    echo "Service file updated and $SERVICE_NAME restarted."
+  else
+    systemctl --user start "${SERVICE_NAME}"
+    echo "Service file updated and $SERVICE_NAME started."
   fi
   exit 0
 fi
