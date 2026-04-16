@@ -1218,6 +1218,24 @@ const appEvents = async () => {
       // tracker now shows ON. Clears on the next mouseDown.
       if (wasOff && status === "ON") {
         WEBVIEW.tracker.display.waking = true;
+        // Re-attach the CDP debugger for each view — the session can go stale
+        // after extended idle (hours), causing touch events to stop being
+        // converted to mouse clicks even though the kernel still sees them.
+        WEBVIEW.views.forEach((view) => {
+          try {
+            view.webContents.debugger.detach();
+          } catch (e) {}
+          try {
+            view.webContents.debugger.attach("1.1");
+            view.webContents.debugger.sendCommand("Emulation.setEmitTouchEventsForMouse", {
+              configuration: "mobile",
+              enabled: true,
+            });
+            console.debug("webview.js: appEvents(updateDisplay) debugger re-attached on wake");
+          } catch (e) {
+            console.error("webview.js: appEvents(updateDisplay) debugger re-attach failed:", e);
+          }
+        });
       }
     }
   });
