@@ -8,6 +8,23 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.14] — 2026-04-16
+
+### Fixed
+- **Touch input stops working after extended display sleep** — after 5+ hours of
+  idle with the display off (swayidle + wlopm), touching the screen to wake it
+  would restore the display but the app would no longer respond to touch. Root
+  cause: the Chrome DevTools Protocol (CDP) debugger session attached at startup
+  (used to convert raw touch events to mouse clicks via
+  `Emulation.setEmitTouchEventsForMouse`) silently went stale during extended
+  idle. The kernel continued receiving touch events (confirmed via
+  `libinput debug-events`) and Electron continued rendering (HA state updates
+  appeared on screen), but touch never converted to clicks. Fix: on every
+  `OFF → ON` display transition, detach and re-attach the CDP debugger for each
+  webview before the first touch is processed.
+
+---
+
 ## [1.5.13] — 2026-04-14
 
 ### Fixed
