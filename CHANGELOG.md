@@ -8,6 +8,26 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.15] — 2026-04-16
+
+### Fixed
+- **Touch input slow or unresponsive after display wake (regression in 1.5.14)** —
+  the v1.5.14 fix unconditionally detached and re-attached the CDP debugger on
+  every `OFF → ON` display transition, even for short sleeps where the session was
+  still alive. Two bugs in that implementation caused the regression:
+  (1) `debugger.sendCommand()` is async but was not awaited — the `try/catch`
+  cannot catch Promise rejections, so if the command failed the emulation mode
+  was silently never applied and the rejection went unhandled in Electron's
+  Node.js layer; (2) the unconditional `detach()` on healthy sessions left a
+  window between detach and the completion of the async re-attach where raw touch
+  events arrived without emulation, causing Chromium's input queue to back up and
+  the whole system to feel sluggish. Fix: on wake, first try re-sending
+  `setEmitTouchEventsForMouse` to the existing session (no disruption if it is
+  healthy); only fall back to detach + re-attach if that command fails (session
+  genuinely stale). All `sendCommand` calls are now properly awaited.
+
+---
+
 ## [1.5.14] — 2026-04-16
 
 ### Fixed
