@@ -1208,7 +1208,7 @@ const appEvents = async () => {
   // Handle global events
   EVENTS.on("reloadView", reloadView);
   EVENTS.on("updateView", updateView);
-  EVENTS.on("updateDisplay", () => {
+  EVENTS.on("updateDisplay", async () => {
     const status = hardware.getDisplayStatus();
     if (status) {
       const wasOff = WEBVIEW.tracker.display.off > WEBVIEW.tracker.display.on;
@@ -1218,24 +1218,34 @@ const appEvents = async () => {
       // tracker now shows ON. Clears on the next mouseDown.
       if (wasOff && status === "ON") {
         WEBVIEW.tracker.display.waking = true;
-        // Re-attach the CDP debugger for each view — the session can go stale
-        // after extended idle (hours), causing touch events to stop being
-        // converted to mouse clicks even though the kernel still sees them.
-        WEBVIEW.views.forEach((view) => {
+        // Refresh touch emulation on wake — the CDP session can go stale after
+        // extended idle (hours), causing touch events to stop being converted to
+        // mouse clicks. Try re-sending the command to the existing session first;
+        // only fall back to detach + re-attach if the session is genuinely gone.
+        for (const view of WEBVIEW.views) {
           try {
-            view.webContents.debugger.detach();
-          } catch (e) {}
-          try {
-            view.webContents.debugger.attach("1.1");
-            view.webContents.debugger.sendCommand("Emulation.setEmitTouchEventsForMouse", {
+            await view.webContents.debugger.sendCommand("Emulation.setEmitTouchEventsForMouse", {
               configuration: "mobile",
               enabled: true,
             });
-            console.info("webview.js: appEvents(updateDisplay) debugger re-attached on wake");
-          } catch (e) {
-            console.error("webview.js: appEvents(updateDisplay) debugger re-attach failed:", e);
+            console.info("webview.js: appEvents(updateDisplay) debugger touch emulation refreshed on wake");
+          } catch (_e) {
+            // Session stale — detach and re-attach
+            try {
+              view.webContents.debugger.detach();
+            } catch (_e2) {}
+            try {
+              view.webContents.debugger.attach("1.1");
+              await view.webContents.debugger.sendCommand("Emulation.setEmitTouchEventsForMouse", {
+                configuration: "mobile",
+                enabled: true,
+              });
+              console.info("webview.js: appEvents(updateDisplay) debugger re-attached on wake");
+            } catch (e) {
+              console.error("webview.js: appEvents(updateDisplay) debugger re-attach failed:", e);
+            }
           }
-        });
+        }
       }
     }
   });
