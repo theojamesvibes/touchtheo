@@ -1231,7 +1231,7 @@ const appEvents = async () => {
               configuration: "mobile",
               enabled: true,
             });
-            console.debug("webview.js: appEvents(updateDisplay) debugger re-attached on wake");
+            console.info("webview.js: appEvents(updateDisplay) debugger re-attached on wake");
           } catch (e) {
             console.error("webview.js: appEvents(updateDisplay) debugger re-attach failed:", e);
           }
