@@ -258,7 +258,7 @@ const initApp = () => {
     payload_install: "app_early" in ARGS ? "update early" : "update",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.appUpdate) {
+  if (!HARDWARE.support.appUpdate || ARGS.app_disable.includes("mqtt_app")) {
     removeConfig("update", config);
     return;
   }
@@ -286,7 +286,7 @@ const initApp = () => {
  */
 const updateApp = async (progress = 0) => {
   const latest = APP.releases.latest;
-  if (!HARDWARE.support.appUpdate || !latest || !latest.summary) {
+  if (!HARDWARE.support.appUpdate || ARGS.app_disable.includes("mqtt_app") || !latest || !latest.summary) {
     return;
   }
   const summary = latest.summary.length > 250 ? latest.summary.slice(0, 250) + "..." : latest.summary;
@@ -314,7 +314,7 @@ const initShutdown = () => {
     icon: "mdi:power",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.sudoRights) {
+  if (!HARDWARE.support.sudoRights || ARGS.app_disable.includes("mqtt_shutdown")) {
     removeConfig("button", config);
     return;
   }
@@ -342,7 +342,7 @@ const initReboot = () => {
     icon: "mdi:restart",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.sudoRights) {
+  if (!HARDWARE.support.sudoRights || ARGS.app_disable.includes("mqtt_reboot")) {
     removeConfig("button", config);
     return;
   }
@@ -370,6 +370,10 @@ const initRefresh = () => {
     icon: "mdi:web-refresh",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_refresh")) {
+    removeConfig("button", config);
+    return;
+  }
   publishConfig("button", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
@@ -397,6 +401,10 @@ const initKiosk = () => {
     icon: "mdi:overscan",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_kiosk")) {
+    removeConfig("select", config);
+    return;
+  }
   publishConfig("select", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
@@ -415,6 +423,7 @@ const initKiosk = () => {
  * Updates the kiosk status via the mqtt connection.
  */
 const updateKiosk = async () => {
+  if (ARGS.app_disable.includes("mqtt_kiosk")) return;
   const kiosk = WEBVIEW.tracker.window.status;
   publishState("kiosk", kiosk);
 };
@@ -434,6 +443,10 @@ const initTheme = () => {
     icon: "mdi:compare",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_theme")) {
+    removeConfig("select", config);
+    return;
+  }
   publishConfig("select", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
@@ -450,6 +463,7 @@ const initTheme = () => {
  * Updates the application theme via the mqtt connection.
  */
 const updateTheme = async () => {
+  if (ARGS.app_disable.includes("mqtt_theme")) return;
   const theme = WEBVIEW.theme.get();
   publishState("theme", theme.charAt(0).toUpperCase() + theme.slice(1));
 };
@@ -475,7 +489,7 @@ const initDisplay = () => {
       brightness_scale: 100,
     }),
   };
-  if (!HARDWARE.support.displayStatus) {
+  if (!HARDWARE.support.displayStatus || ARGS.app_disable.includes("mqtt_display")) {
     removeConfig("light", config);
     return;
   }
@@ -512,6 +526,7 @@ const initDisplay = () => {
  * Updates the display status, brightness via the mqtt connection.
  */
 const updateDisplay = async () => {
+  if (ARGS.app_disable.includes("mqtt_display")) return;
   const status = hardware.getDisplayStatus();
   const brightness = hardware.getDisplayBrightness();
   publishState("display/brightness", brightness);
@@ -536,7 +551,7 @@ const initVolume = () => {
     icon: "mdi:volume-high",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.audioVolume) {
+  if (!HARDWARE.support.audioVolume || ARGS.app_disable.includes("mqtt_volume")) {
     removeConfig("number", config);
     return;
   }
@@ -556,6 +571,7 @@ const initVolume = () => {
  * Updates the audio volume via the mqtt connection.
  */
 const updateVolume = async () => {
+  if (ARGS.app_disable.includes("mqtt_volume")) return;
   const volume = hardware.getAudioVolume();
   publishState("volume", volume);
 };
@@ -573,7 +589,7 @@ const initKeyboard = () => {
     icon: "mdi:keyboard-close-outline",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.keyboardVisibility) {
+  if (!HARDWARE.support.keyboardVisibility || ARGS.app_disable.includes("mqtt_keyboard")) {
     removeConfig("switch", config);
     return;
   }
@@ -595,6 +611,7 @@ const initKeyboard = () => {
  * Updates the keyboard visibility via the mqtt connection.
  */
 const updateKeyboard = async () => {
+  if (ARGS.app_disable.includes("mqtt_keyboard")) return;
   const visibility = hardware.getKeyboardVisibility();
   publishState("keyboard", visibility);
 };
@@ -617,7 +634,7 @@ const initPageNumber = () => {
     icon: "mdi:page-next",
     device: INTEGRATION.device,
   };
-  if (WEBVIEW.viewUrls.length <= 2) {
+  if (WEBVIEW.viewUrls.length <= 2 || ARGS.app_disable.includes("mqtt_page_number")) {
     removeConfig("number", config);
     return;
   }
@@ -640,6 +657,7 @@ const initPageNumber = () => {
  * Updates the page number via the mqtt connection.
  */
 const updatePageNumber = async () => {
+  if (ARGS.app_disable.includes("mqtt_page_number")) return;
   const pageNumber = WEBVIEW.viewUrls.length <= 2 ? null : WEBVIEW.viewActive || 1;
   publishState("page_number", pageNumber);
 };
@@ -663,6 +681,10 @@ const initPageZoom = () => {
     icon: "mdi:magnify-plus",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_page_zoom")) {
+    removeConfig("number", config);
+    return;
+  }
   publishConfig("number", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
@@ -682,6 +704,7 @@ const initPageZoom = () => {
  * Updates the page zoom via the mqtt connection.
  */
 const updatePageZoom = async () => {
+  if (ARGS.app_disable.includes("mqtt_page_zoom")) return;
   const pageZoom = WEBVIEW.zoom.get();
   publishState("page_zoom", pageZoom);
 };
@@ -701,6 +724,10 @@ const initPageUrl = () => {
     icon: "mdi:web",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_page_url")) {
+    removeConfig("text", config);
+    return;
+  }
   publishConfig("text", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
@@ -719,6 +746,7 @@ const initPageUrl = () => {
  * Updates the page url via the mqtt connection.
  */
 const updatePageUrl = async () => {
+  if (ARGS.app_disable.includes("mqtt_page_url")) return;
   const defaultUrl = WEBVIEW.viewUrls[WEBVIEW.viewActive || 1];
   const currentUrl = WEBVIEW.views[WEBVIEW.viewActive || 1].webContents.getURL();
   const pageUrl = !currentUrl || currentUrl.startsWith("data:") ? defaultUrl : currentUrl;
@@ -739,6 +767,7 @@ const initModel = () => {
     icon: "mdi:raspberry-pi",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_model")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateModel();
 };
@@ -747,6 +776,7 @@ const initModel = () => {
  * Updates the model sensor via the mqtt connection.
  */
 const updateModel = async () => {
+  if (ARGS.app_disable.includes("mqtt_model")) return;
   const model = hardware.getModel();
   publishState("model", model);
   publishAttributes("model", HARDWARE.support);
@@ -765,6 +795,7 @@ const initSerialNumber = () => {
     icon: "mdi:hexadecimal",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_serial_number")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateSerialNumber();
 };
@@ -773,6 +804,7 @@ const initSerialNumber = () => {
  * Updates the serial number sensor via the mqtt connection.
  */
 const updateSerialNumber = async () => {
+  if (ARGS.app_disable.includes("mqtt_serial_number")) return;
   const serialNumber = hardware.getSerialNumber();
   publishState("serial_number", serialNumber);
 };
@@ -791,6 +823,7 @@ const initNetworkAddress = () => {
     icon: "mdi:ip-network",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_network_address")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateNetworkAddress();
 };
@@ -799,6 +832,7 @@ const initNetworkAddress = () => {
  * Updates the network address sensor via the mqtt connection.
  */
 const updateNetworkAddress = async () => {
+  if (ARGS.app_disable.includes("mqtt_network_address")) return;
   const networkAddresses = hardware.getNetworkAddresses();
   const [name] = Object.keys(networkAddresses);
   const [family] = name ? Object.keys(networkAddresses[name]) : [];
@@ -820,6 +854,7 @@ const initHostName = () => {
     icon: "mdi:console-network",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_host_name")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateHostName();
 };
@@ -828,6 +863,7 @@ const initHostName = () => {
  * Updates the host name sensor via the mqtt connection.
  */
 const updateHostName = async () => {
+  if (ARGS.app_disable.includes("mqtt_host_name")) return;
   const hostName = hardware.getHostName();
   publishState("host_name", hostName);
 };
@@ -847,6 +883,7 @@ const initUpTime = () => {
     icon: "mdi:timeline-clock",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_up_time")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateUpTime();
 };
@@ -855,6 +892,7 @@ const initUpTime = () => {
  * Updates the up time sensor via the mqtt connection.
  */
 const updateUpTime = async () => {
+  if (ARGS.app_disable.includes("mqtt_up_time")) return;
   const upTime = hardware.getUpTime();
   const startTime = {
     app: APP.start,
@@ -878,6 +916,7 @@ const initMemorySize = () => {
     icon: "mdi:memory",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_memory_size")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateMemorySize();
 };
@@ -886,6 +925,7 @@ const initMemorySize = () => {
  * Updates the memory size sensor via the mqtt connection.
  */
 const updateMemorySize = async () => {
+  if (ARGS.app_disable.includes("mqtt_memory_size")) return;
   const memorySize = hardware.getMemorySize();
   publishState("memory_size", memorySize);
 };
@@ -904,6 +944,7 @@ const initMemoryUsage = () => {
     icon: "mdi:memory-arrow-down",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_memory_usage")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateMemoryUsage();
 };
@@ -912,6 +953,7 @@ const initMemoryUsage = () => {
  * Updates the memory usage sensor via the mqtt connection.
  */
 const updateMemoryUsage = async () => {
+  if (ARGS.app_disable.includes("mqtt_memory_usage")) return;
   const memoryUsage = hardware.getMemoryUsage();
   publishState("memory_usage", memoryUsage);
 };
@@ -930,6 +972,7 @@ const initProcessorUsage = () => {
     icon: "mdi:cpu-64-bit",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_processor_usage")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateProcessorUsage();
 };
@@ -938,6 +981,7 @@ const initProcessorUsage = () => {
  * Updates the processor usage sensor via the mqtt connection.
  */
 const updateProcessorUsage = async () => {
+  if (ARGS.app_disable.includes("mqtt_processor_usage")) return;
   const processorUsage = hardware.getProcessorUsage();
   publishState("processor_usage", processorUsage);
 };
@@ -956,6 +1000,7 @@ const initProcessorTemperature = () => {
     icon: "mdi:radiator",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_processor_temperature")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateProcessorTemperature();
 };
@@ -964,6 +1009,7 @@ const initProcessorTemperature = () => {
  * Updates the processor temperature sensor via the mqtt connection.
  */
 const updateProcessorTemperature = async () => {
+  if (ARGS.app_disable.includes("mqtt_processor_temperature")) return;
   const processorTemperature = hardware.getProcessorTemperature();
   publishState("processor_temperature", processorTemperature);
 };
@@ -982,7 +1028,7 @@ const initBatteryLevel = () => {
     icon: "mdi:battery-medium",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.batteryLevel) {
+  if (!HARDWARE.support.batteryLevel || ARGS.app_disable.includes("mqtt_battery_level")) {
     removeConfig("sensor", config);
     return;
   }
@@ -994,6 +1040,7 @@ const initBatteryLevel = () => {
  * Updates the battery level sensor via the mqtt connection.
  */
 const updateBatteryLevel = async () => {
+  if (ARGS.app_disable.includes("mqtt_battery_level")) return;
   const batteryLevel = hardware.getBatteryLevel();
   publishState("battery_level", batteryLevel);
 };
@@ -1012,6 +1059,7 @@ const initPackageUpgrades = () => {
     icon: "mdi:package-down",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_package_upgrades")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updatePackageUpgrades();
 };
@@ -1020,6 +1068,7 @@ const initPackageUpgrades = () => {
  * Updates the package upgrades sensor via the mqtt connection.
  */
 const updatePackageUpgrades = async () => {
+  if (ARGS.app_disable.includes("mqtt_package_upgrades")) return;
   const packages = hardware.checkPackageUpgrades();
   const upgrades = {
     packages: packages.map((pkg) => {
@@ -1046,6 +1095,7 @@ const initLastActive = () => {
     icon: "mdi:gesture-tap-hold",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_last_active")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateLastActive();
 };
@@ -1054,6 +1104,7 @@ const initLastActive = () => {
  * Updates the last active sensor via the mqtt connection.
  */
 const updateLastActive = async () => {
+  if (ARGS.app_disable.includes("mqtt_last_active")) return;
   const now = new Date();
   const then = WEBVIEW.tracker.pointer.time;
   const lastActive = (now - then) / (1000 * 60);
@@ -1080,6 +1131,7 @@ const initScreenshot = () => {
     icon: "mdi:image-area",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_screenshot")) { removeConfig("image", config); return; }
   publishConfig("image", config);
   updateScreenshot();
 };
@@ -1088,6 +1140,7 @@ const initScreenshot = () => {
  * Updates the page screenshot via the mqtt connection.
  */
 const updateScreenshot = async () => {
+  if (ARGS.app_disable.includes("mqtt_screenshot")) return;
   const screenshot = WEBVIEW.tracker.screenshot;
   publishState("screenshot", screenshot);
 };
@@ -1107,6 +1160,7 @@ const initHeartbeat = () => {
     icon: "mdi:heart-flash",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_heartbeat")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateHeartbeat();
 };
@@ -1115,6 +1169,7 @@ const initHeartbeat = () => {
  * Updates the heartbeat sensor via the mqtt connection.
  */
 const updateHeartbeat = async () => {
+  if (ARGS.app_disable.includes("mqtt_heartbeat")) return;
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
   const heartbeat = local.toISOString().replace(/\.\d{3}Z$/, "");
@@ -1138,6 +1193,7 @@ const initErrors = () => {
     icon: "mdi:alert-circle",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_errors")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateErrors();
 };
@@ -1146,6 +1202,7 @@ const initErrors = () => {
  * Updates the error log sensor via the mqtt connection.
  */
 const updateErrors = async () => {
+  if (ARGS.app_disable.includes("mqtt_errors")) return;
   const logs = APP.logs.slice().reverse();
   const errors = logs.filter((log) => log.level === "error");
   const history = logs.reduce((acc, log) => {
@@ -1175,6 +1232,7 @@ const initVersion = () => {
     icon: "mdi:application-braces",
     device: INTEGRATION.device,
   };
+  if (ARGS.app_disable.includes("mqtt_version")) { removeConfig("sensor", config); return; }
   publishConfig("sensor", config);
   updateVersion();
 };
@@ -1183,6 +1241,7 @@ const initVersion = () => {
  * Updates the version sensor via the mqtt connection.
  */
 const updateVersion = async () => {
+  if (ARGS.app_disable.includes("mqtt_version")) return;
   publishState("version", APP.version);
   publishAttributes("version", APP.build);
 };

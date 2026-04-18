@@ -14,7 +14,7 @@ const Events = require("events");
 const KNOWN_ARGS = new Set([
   "web_url", "web_theme", "web_zoom", "web_widget",
   "mqtt_url", "mqtt_user", "mqtt_password", "mqtt_discovery",
-  "setup", "help", "version", "app_reset",
+  "setup", "help", "version", "app_reset", "app_disable",
 ]);
 
 // Required on Raspberry Pi OS — the kernel namespace restrictions cause
@@ -224,6 +224,13 @@ const initArgs = async () => {
   args.web_url = args.web_url || [];
   if (!Array.isArray(args.web_url)) {
     args.web_url = args.web_url.split(",").map((url) => url.trim());
+  }
+
+  // Apply app_disable defaults — sensors disabled unless explicitly overridden in Arguments.json
+  if (!("app_disable" in args)) {
+    args.app_disable = ["mqtt_screenshot", "mqtt_errors", "mqtt_app"];
+  } else if (!Array.isArray(args.app_disable)) {
+    args.app_disable = (args.app_disable || "").split(",").map((d) => d.trim()).filter(Boolean);
   }
 
   // Calculate arguments hash
