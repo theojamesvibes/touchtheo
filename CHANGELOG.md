@@ -8,6 +8,23 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.17] — 2026-04-17
+
+### Added
+- **`app_disable` — selectively disable MQTT sensors** — add an `"app_disable"` array to `Arguments.json` listing any sensors you don't want published to Home Assistant. On startup, disabled sensors are removed from HA's MQTT discovery so they disappear cleanly; periodic updates for those sensors are skipped entirely.
+
+  Default (applied automatically when `app_disable` is absent from your config):
+  ```json
+  "app_disable": ["mqtt_screenshot", "mqtt_errors", "mqtt_app"]
+  ```
+  To enable all sensors: `"app_disable": []`. Full list of disableable sensor names:
+  `mqtt_app`, `mqtt_shutdown`, `mqtt_reboot`, `mqtt_refresh`, `mqtt_kiosk`, `mqtt_theme`,
+  `mqtt_display`, `mqtt_volume`, `mqtt_keyboard`, `mqtt_page_number`, `mqtt_page_zoom`,
+  `mqtt_page_url`, `mqtt_model`, `mqtt_serial_number`, `mqtt_network_address`, `mqtt_host_name`,
+  `mqtt_up_time`, `mqtt_memory_size`, `mqtt_memory_usage`, `mqtt_processor_usage`,
+  `mqtt_processor_temperature`, `mqtt_battery_level`, `mqtt_package_upgrades`, `mqtt_last_active`,
+  `mqtt_screenshot`, `mqtt_heartbeat`, `mqtt_errors`, `mqtt_version`
+
 ## [1.5.16] — 2026-04-17
 
 ### Fixed
