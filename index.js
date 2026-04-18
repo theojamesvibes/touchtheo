@@ -110,6 +110,7 @@ const initApp = async () => {
   const buildFileExists = fs.existsSync(buildJsonPath);
 
   // Set required app infos
+  APP.start = new Date();
   APP.name = app.getName();
   APP.title = packageJson.title;
   APP.version = app.getVersion();
