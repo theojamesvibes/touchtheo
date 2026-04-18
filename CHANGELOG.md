@@ -8,6 +8,15 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.16] — 2026-04-17
+
+### Fixed
+- **Touch events ignored after display wake (upstream fix, TouchKio #148)** — after a touch woke the display, the next touch could be incorrectly filtered as "display off" because the `tracker.display.on` timestamp was only updated by the async `updateDisplay` event, which fires after the next `mouseDown` had already been evaluated. Fixed by synchronously setting `tracker.display.on = new Date()` immediately after calling `setDisplayStatus("ON")` in the touch handler.
+
+### Changed
+- **Screenshot MQTT sensor capped at 800px** — screenshots published to Home Assistant via MQTT are now resized to a maximum of 800px on either dimension before encoding, reducing payload size on high-resolution displays.
+- **Uptime sensor adds `app` start timestamp** — the Up Time sensor's attributes now include both `app` (time TouchTheo was last started) and `boot` (system boot time), powered by a new `APP.start` timestamp recorded at application init.
+
 ## [1.5.15] — 2026-04-16
 
 ### Fixed

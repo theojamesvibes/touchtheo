@@ -856,11 +856,12 @@ const initUpTime = () => {
  */
 const updateUpTime = async () => {
   const upTime = hardware.getUpTime();
-  const bootTime = {
+  const startTime = {
+    app: APP.start,
     boot: new Date(new Date().getTime() - upTime * 60 * 1000),
   };
   publishState("up_time", upTime);
-  publishAttributes("up_time", bootTime);
+  publishAttributes("up_time", startTime);
 };
 
 /**

@@ -1183,6 +1183,7 @@ const viewEvents = async () => {
                 // Turn display on if it was off
                 if (off) {
                   hardware.setDisplayStatus("ON");
+                  WEBVIEW.tracker.display.on = new Date();
                 }
               }
               break;
@@ -1418,7 +1419,14 @@ const cookieStore = async (key, value, view = WEBVIEW.views[WEBVIEW.viewActive])
 const captureView = async (wait, view = WEBVIEW.views[WEBVIEW.viewActive]) => {
   await new Promise((r) => setTimeout(r, wait));
   const image = await view.webContents.capturePage();
-  const dataUrl = image.toDataURL();
+  const max = 800;
+  const size = image.getSize();
+  const scale = Math.min(max / size.width, max / size.height, 1);
+  const resized = image.resize({
+    width: Math.max(1, Math.floor(size.width * scale)),
+    height: Math.max(1, Math.floor(size.height * scale)),
+  });
+  const dataUrl = resized.toDataURL();
   const dataString = dataUrl.replace(/^data:image\/\w+;base64,/, "").trim();
   WEBVIEW.tracker.screenshot = dataString || WEBVIEW.tracker.screenshot;
   return WEBVIEW.tracker.screenshot;
