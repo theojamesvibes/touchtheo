@@ -343,6 +343,81 @@ If you need to debug the webview **(Chrome DevTools)** use `touchtheo --app-debu
 
 In case [undocumented problems](https://github.com/theojamesvibes/touchtheo/blob/main/HARDWARE.md#faq) arise, please [create an issue](https://github.com/theojamesvibes/touchtheo/issues) and include the output of `touchtheo --version`, additional information about your system (such as operating system, hardware, etc.), and any relevant log files.
 
+### Rotation troubleshooting
+
+If you upgrade Raspberry Pi OS (especially across the **wayfire → labwc** compositor switch), display rotation set in `~/.config/wayfire.ini` or via `display_rotate=` in `/boot/firmware/config.txt` will stop applying. labwc reads completely different config files, and even after the screen rotates correctly the touch input often stays mapped to the unrotated coordinate space.
+
+The walkthrough below is for a Raspberry Pi 5 with a DSI touchscreen on current Pi OS Bookworm (labwc as the Wayland compositor). Adapt output names to whatever `wlr-randr` reports on your hardware.
+
+**1. Confirm you're on labwc and identify outputs**
+
+Over SSH, the Wayland environment isn't set automatically — export it before calling Wayland tools:
+
+```bash
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export WAYLAND_DISPLAY=$(basename "$(ls /run/user/$(id -u)/wayland-* 2>/dev/null | head -1)")
+ps -ef | grep -E "labwc|wayfire" | grep -v grep
+wlr-randr
+```
+
+Note the output name of the touchscreen (typically `DSI-2` for the official Pi DSI panel) and any unused secondary outputs (often `HDMI-A-1`).
+
+**2. Apply rotation live to test**
+
+```bash
+wlr-randr --output DSI-2 --transform 90 --output HDMI-A-1 --off
+```
+
+`--transform 90` is 90° clockwise. The screen should rotate immediately. If touch input now lands in the wrong place, that's expected — fixed in step 4.
+
+**3. Persist the rotation via labwc autostart**
+
+```bash
+mkdir -p ~/.config/labwc
+cat >> ~/.config/labwc/autostart <<'EOF'
+wlr-randr --output DSI-2 --transform 90 --output HDMI-A-1 --off &
+EOF
+chmod +x ~/.config/labwc/autostart
+```
+
+This runs at every labwc session start. If `~/.config/labwc/autostart` already contains other entries (e.g. a `swayidle` line), `cat >>` appends rather than replacing.
+
+**4. Fix touch input mapping**
+
+labwc 0.8.x's `<libinput><mapToOutput>` element in `rc.xml` is unreliable on rotated outputs in current Pi OS Bookworm. The bulletproof fallback is a udev rule that applies a calibration matrix at the libinput layer:
+
+First identify the touch device name:
+
+```bash
+sudo libinput list-devices | awk '/^Device:/{d=$0} /Capabilities:.*touch/{print d}'
+```
+
+Then write a udev rule using that exact name:
+
+```bash
+sudo tee /etc/udev/rules.d/99-touchscreen-rotation.rules >/dev/null <<'EOF'
+ATTRS{name}=="Goodix Capacitive TouchScreen", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 0"
+EOF
+sudo udevadm control --reload-rules
+sudo reboot
+```
+
+(Replace `Goodix Capacitive TouchScreen` with whatever your `libinput list-devices` reported.)
+
+The reboot is needed — the calibration matrix is read when the input device is created, so re-triggering udev alone usually doesn't pick it up.
+
+**5. If touch is still off, swap the matrix**
+
+The right matrix depends on how your panel is physically oriented vs. the `wlr-randr` transform:
+
+| Touch rotation needed | Matrix |
+|---|---|
+| 90° clockwise | `0 1 0 -1 0 1` |
+| 180° | `-1 0 1 0 -1 1` |
+| 90° counter-clockwise | `0 -1 1 1 0 0` |
+
+Empirically, on the Pi DSI panel rotated 90° clockwise via `wlr-randr --transform 90`, the touch matrix that matched the physical orientation was the **counter-clockwise** one (`0 -1 1 1 0 0`) — the panel's native scan direction differs from the libinput coordinate convention. If your first attempt is rotated wrong, try the matrix one row up or down in the table above.
+
 ## Changes from TouchKio
 
 TouchTheo is a fork/clean copy of **[TouchKio](https://github.com/leukipp/touchkio)** by [@leukipp](https://github.com/leukipp), targeted specifically at Raspberry Pi 5 and optimised for performance. The following changes were made relative to the upstream codebase:
