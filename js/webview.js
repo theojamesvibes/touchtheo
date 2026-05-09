@@ -50,7 +50,7 @@ const init = async () => {
 
   // Clear cache and storage
   await session.defaultSession.clearCache();
-  if (ARGS.app_reset === "storage") {
+  if (ARGS.app_reset.includes("storage")) {
     await session.defaultSession.clearStorageData();
   }
 
@@ -1088,7 +1088,7 @@ const viewEvents = async () => {
     // Update webview layout
     view.webContents.once("dom-ready", () => {
       console.debug(`webview.js: viewEvents(${i},dom-ready)`);
-      if ("app_reset" in ARGS) {
+      if (ARGS.app_reset.length > 0) {
         cookieStore("web-theme", WEBVIEW.theme.default, view);
         cookieStore("web-zoom", WEBVIEW.zoom.default, view);
       }
@@ -1289,9 +1289,9 @@ const appEvents = async () => {
     console.error(`${details.type} Process ${details.reason} (code ${details.exitCode}): ${name}`);
   });
 
-  // Update latest screenshot (every full 1min)
+  // Update latest screenshot (every full 1min) — skip the capturePage entirely when sensor disabled
   interval(() => {
-    if (APP.exiting) {
+    if (APP.exiting || ARGS.app_disable.includes("mqtt_screenshot")) {
       return;
     }
     captureView(5000).then(() => {

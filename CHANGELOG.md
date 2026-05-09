@@ -8,6 +8,12 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.5.18] — 2026-05-09
+
+### Changed
+- **Skip the screenshot capture entirely when `mqtt_screenshot` is disabled (upstream alignment, TouchKio #201)** — TouchTheo's default `app_disable` list includes `mqtt_screenshot`, but the periodic 60-second `captureView()` call was still running and discarding the result. The capture is now gated on the same `app_disable` check, so disabling the sensor actually saves the per-minute full-page render.
+- **`app_reset` is now an array, not a string (upstream alignment, TouchKio #201)** — matches the upstream API contract, allowing multiple resets in one invocation (e.g. `"app_reset": ["storage", "arguments"]`). Existing string-style values continue to work — they're parsed as comma-separated and converted to an array on startup. Callers should now use `.includes(...)` and `.length` checks; the auto-trigger that resets arguments after an `Arguments.json` change uses `.push("arguments")` accordingly.
+
 ## [1.5.17] — 2026-04-17
 
 ### Added

@@ -236,8 +236,14 @@ const initArgs = async () => {
   // Calculate arguments hash
   const argsFileHash = crypto.createHash("sha256").update(JSON.stringify(args)).digest("hex");
   const argsUpdated = argsFileHashExists && argsFileHash !== fs.readFileSync(argsFileHashPath, "utf8");
-  if (argsUpdated && !("app_reset" in args)) {
-    args.app_reset = "arguments";
+
+  // Normalise app_reset to an array (matches upstream TouchKio 1.4.3 API)
+  args.app_reset = args.app_reset || [];
+  if (!Array.isArray(args.app_reset)) {
+    args.app_reset = args.app_reset.split(",").map((r) => r.trim()).filter(Boolean);
+  }
+  if (argsUpdated && !args.app_reset.includes("arguments")) {
+    args.app_reset.push("arguments");
   }
   if (fs.existsSync(APP.cache)) {
     fs.writeFileSync(argsFileHashPath, argsFileHash);
