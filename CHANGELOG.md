@@ -8,6 +8,29 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.6.1] — 2026-05-25
+
+Maintenance / tooling release. **No application code changed since 1.6.0**, so the
+packaged `.deb`/`.zip` artifacts are functionally identical to 1.6.0 — this release
+exists to ship the new project tooling and the committed lockfile from a clean tag.
+
+### Added
+- **Continuous testing** — a `node:test` unit suite (`tests/hardware.test.js`, Node
+  built-ins only) now runs on every push and PR via `.github/workflows/test.yml`.
+  It covers the thermal-priority logic (upstream #192) and locks in the Raspberry
+  Pi 5 divergences (rp1_thermal priority, 1-minute load average, network-interface
+  walk) so a future upstream catchup cannot silently regress them.
+- **Dependabot** (`.github/dependabot.yml`) — weekly `github-actions` updates, plus
+  weekly `npm` updates grouped into a single PR. (TouchTheo tracks upstream TouchKio
+  dependency versions, so some npm bumps may be superseded by the next catchup; they
+  are kept for security regardless.)
+
+### Changed
+- **CI actions bumped** — `actions/checkout` 4 → 6 and `actions/setup-node` 4 → 6
+  across the release and test workflows (via Dependabot).
+- `forge.config.js` excludes `tests/` from the packaged application.
+- `yarn.lock` is now committed (regenerated for the 1.6.0 dependency set).
+
 ## [1.6.0] — 2026-05-25
 
 Catch-up with upstream **TouchKio 1.5.0** (pre-release, 2026-05-15): the new
