@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # CI workflow actions (checkout, setup-node, ...). These are TouchTheo's own
+  # infrastructure, independent of the upstream TouchKio dependency set, so keeping
+  # them current carries no risk of diverging from upstream.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  # npm dependencies.
+  #
+  # NOTE: TouchTheo deliberately tracks upstream TouchKio's dependency versions
+  # (see the "TouchKio X.Y catchup" entries in CHANGELOG.md). Dependabot may
+  # therefore propose bumps ahead of upstream; those are still useful for security
+  # (Electron in particular ships frequent Chromium CVE fixes), but expect some to
+  # be superseded by the next upstream catchup. All npm updates are grouped into a
+  # single weekly PR to keep review light.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
