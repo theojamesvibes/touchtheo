@@ -228,7 +228,7 @@ const initArgs = async () => {
 
   // Apply app_disable defaults — sensors disabled unless explicitly overridden in Arguments.json
   if (!("app_disable" in args)) {
-    args.app_disable = ["mqtt_screenshot", "mqtt_errors", "mqtt_app"];
+    args.app_disable = ["mqtt_screenshot", "mqtt_errors", "mqtt_app", "mqtt_microphone", "mqtt_illuminance_level"];
   } else if (!Array.isArray(args.app_disable)) {
     args.app_disable = (args.app_disable || "").split(",").map((d) => d.trim()).filter(Boolean);
   }

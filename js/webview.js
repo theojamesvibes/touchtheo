@@ -1095,7 +1095,8 @@ const viewEvents = async () => {
       ready.push(i);
     });
     view.webContents.on("dom-ready", () => {
-      view.webContents.insertCSS("::-webkit-scrollbar { display: none; }");
+      view.webContents.insertCSS("html, body { scrollbar-width: none !important; }");
+      view.webContents.insertCSS("::-webkit-scrollbar { display: none !important; }");
     });
 
     // Webview fully loaded
@@ -1417,18 +1418,25 @@ const cookieStore = async (key, value, view = WEBVIEW.views[WEBVIEW.viewActive])
  * @returns {Promise<string|null>} The base64 image of the captured page or null if failed.
  */
 const captureView = async (wait, view = WEBVIEW.views[WEBVIEW.viewActive]) => {
-  await new Promise((r) => setTimeout(r, wait));
-  const image = await view.webContents.capturePage();
-  const max = 800;
-  const size = image.getSize();
-  const scale = Math.min(max / size.width, max / size.height, 1);
-  const resized = image.resize({
-    width: Math.max(1, Math.floor(size.width * scale)),
-    height: Math.max(1, Math.floor(size.height * scale)),
-  });
-  const dataUrl = resized.toDataURL();
-  const dataString = dataUrl.replace(/^data:image\/\w+;base64,/, "").trim();
-  WEBVIEW.tracker.screenshot = dataString || WEBVIEW.tracker.screenshot;
+  if (!WEBVIEW.viewActive || ARGS.app_disable.includes("mqtt_screenshot")) {
+    return null;
+  }
+  try {
+    await new Promise((r) => setTimeout(r, wait));
+    const image = await view.webContents.capturePage();
+    const max = 800;
+    const size = image.getSize();
+    const scale = Math.min(max / size.width, max / size.height, 1);
+    const resized = image.resize({
+      width: Math.max(1, Math.floor(size.width * scale)),
+      height: Math.max(1, Math.floor(size.height * scale)),
+    });
+    const dataUrl = resized.toDataURL();
+    const dataString = dataUrl.replace(/^data:image\/\w+;base64,/, "").trim();
+    WEBVIEW.tracker.screenshot = dataString || WEBVIEW.tracker.screenshot;
+  } catch (error) {
+    console.warn("Screenshot Error:", error.message);
+  }
   return WEBVIEW.tracker.screenshot;
 };
 
