@@ -1,0 +1,32 @@
+name: tests
+
+# Logic-only unit tests (node:test) over js/hardware.js. These run on every push
+# and PR so regressions — including a TouchKio catchup accidentally clobbering a
+# Raspberry Pi 5 divergence — are caught before a release tag is cut.
+#
+# The suite depends on Node built-ins only, so there is no install step.
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'HARDWARE.md'
+      - 'img/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Run unit tests
+        run: node --test tests/*.test.js

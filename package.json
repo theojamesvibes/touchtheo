@@ -10,7 +10,8 @@
     "scripts": {
         "start": "electron . --web-url=https://demo.home-assistant.io,https://demo.immichkiosk.app --trace-warnings",
         "start:rpi5": "electron . --web-url=https://demo.home-assistant.io --enable-features=VaapiVideoDecodeLinuxGL --disable-gpu-compositing",
-        "build": "electron-forge make"
+        "build": "electron-forge make",
+        "test": "node --test tests/*.test.js"
     },
     "prettier": {
         "printWidth": 120
