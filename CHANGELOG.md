@@ -8,6 +8,68 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.6.0] — 2026-05-25
+
+Catch-up with upstream **TouchKio 1.5.0** (pre-release, 2026-05-15): the new
+hardware sensors, the thermal-priority fix, and the full dependency bump are
+ported in, each reconciled with TouchTheo's existing Raspberry Pi 5 divergences.
+
+### Added
+- **Ambient light (illuminance) sensor (upstream TouchKio #191)** — reads an IIO
+  ambient light sensor from `/sys/bus/iio/devices/.../in_illuminance_raw` and, when
+  present, publishes an `Illuminance Level` sensor to Home Assistant over MQTT.
+  Hardware-gated (`support.illuminanceLevel`) so it is silently skipped on devices
+  without a light sensor. **Disabled by default** via `app_disable`.
+- **Microphone input volume (upstream TouchKio #195, MQTT path)** — adds detection
+  of the default PulseAudio source and a `Microphone` volume control/sensor over
+  MQTT, mirroring the existing audio-output volume support. `HARDWARE.audio.device`
+  is now `{ output, input }` and the `pactl subscribe` monitor watches source as
+  well as sink changes. Hardware-gated (`support.microphoneVolume`) and **disabled
+  by default** via `app_disable`.
+- **External display power/brightness via `ddcutil` (upstream TouchKio #194)** —
+  display power and brightness control now falls back to `ddcutil` (DDC/CI) for
+  HDMI-connected external monitors, in addition to the sysfs backlight path used by
+  the official DSI touch display.
+
+### Changed
+- **Dependencies brought up to upstream TouchKio 1.5.0 (and current on npm):**
+  `electron` ^39.2.4 → **^42.1.0** (three majors; Chromium security fixes),
+  `axios` ^1.13.2 → ^1.16.1, `mqtt` ^5.14.1 → ^5.15.1, `electron-log` ^5.4.3 →
+  ^5.4.4, `@electron-forge/*` ^7.10.2 → ^7.11.1, `prettier` ^3.6.2 → ^3.8.3. CI
+  `setup-node` 20.x → 22.x.
+- **`getProcessorTemperature` rewritten to collect-then-prioritise (upstream #192),
+  merged with the RPi5 `rp1_thermal` zone.** Previously the first thermal zone in
+  directory-read order won, regardless of which sensor it was; now all known zones
+  are read and the most representative is chosen by a fixed priority
+  (`cpu-thermal` → `rp1_thermal` → … → `acpitz` last), with a 0–150 °C sanity
+  bound. TouchTheo's `rp1_thermal` zone is preserved at second priority.
+- **`captureView` hardened (upstream)** — now guarded by `WEBVIEW.viewActive` and
+  wrapped in try/catch, so a capture failure logs a warning instead of throwing.
+  Retains the 800 px screenshot resize and the `mqtt_screenshot` `app_disable` gate.
+- **Webview scrollbar hidden more robustly (upstream)** — adds
+  `scrollbar-width: none` alongside the `::-webkit-scrollbar` rule, both `!important`.
+- **Path-discovery hardening (upstream)** — `getProcessorTemperature`,
+  `getBatteryLevelPath`, `getDisplayStatusPath` and `getDisplayBrightnessPath` now
+  guard their root `/sys` paths with `fs.existsSync` before reading; `compatibleSystem`
+  no longer hard-requires `/sys/class/thermal` and `/sys/class/power_supply`.
+- **New sensors disabled by default** — `mqtt_microphone` and `mqtt_illuminance_level`
+  were added to TouchTheo's default `app_disable` list, so they are opt-in (remove
+  them from `app_disable` in `Arguments.json` to enable) in keeping with TouchTheo's
+  lean-by-default sensor policy.
+
+### Notes
+- **Microphone _HTTP_ exposure (also part of upstream #195) was intentionally not
+  ported.** Upstream bundled it with index.js refactors (removal of the `$DISPLAY`
+  guard and the electron-log file handling) that conflict with TouchTheo's
+  persistent-logging and SSH-guard divergences. The MQTT sensor — the Home Assistant
+  integration path — is included.
+- **Not build-tested in this environment** (no Pi 5 / yarn available). The ported
+  code was verified by diffing every changed function against upstream v1.5.0 (only
+  TouchTheo's known divergences differ) and by confirming the merge preserved all
+  RPi5 optimisations. Validate with `yarn && yarn make` on a Pi 5 before tagging.
+- `yarn.lock` was not regenerated (no yarn in this environment); the release
+  workflow's `yarn install` resolves it. Regenerate locally for a reproducible lock.
+
 ## [1.5.18] — 2026-05-09
 
 ### Changed

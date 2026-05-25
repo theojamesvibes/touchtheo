@@ -73,6 +73,7 @@ const init = async () => {
       initTheme();
       initDisplay();
       initVolume();
+      initMicrophone();
       initKeyboard();
       initPageNumber();
       initPageZoom();
@@ -89,6 +90,7 @@ const init = async () => {
       initProcessorUsage();
       initProcessorTemperature();
       initBatteryLevel();
+      initIlluminanceLevel();
       initPackageUpgrades();
       initLastActive();
 
@@ -105,6 +107,7 @@ const init = async () => {
       EVENTS.on("updateApp", updateApp);
       EVENTS.on("updateStatus", updateKiosk);
       EVENTS.on("updateVolume", updateVolume);
+      EVENTS.on("updateMicrophone", updateMicrophone);
       EVENTS.on("updateKeyboard", updateKeyboard);
       EVENTS.on("updatePage", () => {
         updatePageNumber();
@@ -179,6 +182,7 @@ const update = async () => {
   updateProcessorUsage();
   updateProcessorTemperature();
   updateBatteryLevel();
+  updateIlluminanceLevel();
 };
 
 /**
@@ -574,6 +578,51 @@ const updateVolume = async () => {
   if (ARGS.app_disable.includes("mqtt_volume")) return;
   const volume = hardware.getAudioVolume();
   publishState("volume", volume);
+};
+
+/**
+ * Initializes the microphone volume and handles the execute logic.
+ */
+const initMicrophone = () => {
+  const root = `${INTEGRATION.root}/microphone`;
+  const config = {
+    name: "Microphone",
+    unique_id: `${INTEGRATION.node}_microphone`,
+    command_topic: `${root}/set`,
+    state_topic: `${root}/state`,
+    value_template: "{{ value | int }}",
+    mode: "slider",
+    min: 0,
+    max: 100,
+    unit_of_measurement: "%",
+    icon: "mdi:microphone",
+    device: INTEGRATION.device,
+  };
+  if (!HARDWARE.support.microphoneVolume || ARGS.app_disable.includes("mqtt_microphone")) {
+    removeConfig("number", config);
+    return;
+  }
+  publishConfig("number", config)
+    .on("message", (topic, message) => {
+      if (topic === config.command_topic) {
+        const volume = parseInt(message, 10);
+        console.verbose("Set Microphone Volume:", volume);
+        hardware.setMicrophoneVolume(volume);
+      }
+    })
+    .subscribe(config.command_topic);
+  updateMicrophone();
+};
+
+/**
+ * Updates the microphone volume via the mqtt connection.
+ */
+const updateMicrophone = async () => {
+  if (ARGS.app_disable.includes("mqtt_microphone")) {
+    return;
+  }
+  const volume = hardware.getMicrophoneVolume();
+  publishState("microphone", volume);
 };
 
 /**
@@ -1043,6 +1092,40 @@ const updateBatteryLevel = async () => {
   if (ARGS.app_disable.includes("mqtt_battery_level")) return;
   const batteryLevel = hardware.getBatteryLevel();
   publishState("battery_level", batteryLevel);
+};
+
+/**
+ * Initializes the illuminance level sensor.
+ */
+const initIlluminanceLevel = () => {
+  const root = `${INTEGRATION.root}/illuminance_level`;
+  const config = {
+    name: "Illuminance Level",
+    unique_id: `${INTEGRATION.node}_illuminance_level`,
+    state_topic: `${root}/state`,
+    value_template: "{{ (value | float) | round(0) }}",
+    unit_of_measurement: "lx",
+    device_class: "illuminance",
+    icon: "mdi:brightness-5",
+    device: INTEGRATION.device,
+  };
+  if (!HARDWARE.support.illuminanceLevel || ARGS.app_disable.includes("mqtt_illuminance_level")) {
+    removeConfig("sensor", config);
+    return;
+  }
+  publishConfig("sensor", config);
+  updateIlluminanceLevel();
+};
+
+/**
+ * Updates the illuminance level sensor via the mqtt connection.
+ */
+const updateIlluminanceLevel = async () => {
+  if (ARGS.app_disable.includes("mqtt_illuminance_level")) {
+    return;
+  }
+  const illuminanceLevel = hardware.getIlluminanceLevel();
+  publishState("illuminance_level", illuminanceLevel);
 };
 
 /**

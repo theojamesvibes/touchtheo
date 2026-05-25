@@ -31,9 +31,10 @@ Moreover, the device running the **kiosk application** also offers several **Hom
   - [x] Show network interfaces and addresses.
   - [x] List all available system package upgrades.
   - [x] Multi-webpage switching and url navigation.
-  - [x] Volume control for connected audio outputs.
+  - [x] Volume control for connected audio outputs and microphone inputs.
   - [x] Execute system reboot and shutdown commands.
   - [x] Monitor battery, temperature, processor and memory usage.
+  - [x] Ambient light (illuminance) sensor for connected light sensors.
 
 The kiosk application can be executed with command line arguments to load a **Home Assistant dashboard in fullscreen** mode.
 Additionally, a **MQTT endpoint** can be defined, allowing the application to provide controls and sensors for the Linux device and the connected Touch Display.
