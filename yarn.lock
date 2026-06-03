@@ -794,10 +794,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/node@*":
-  version "24.10.1"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.10.1.tgz#91e92182c93db8bd6224fca031e2370cef9a8f01"
-  integrity sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==
+"@types/node@*", "@types/node@^24.9.0":
+  version "24.12.4"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.12.4.tgz#2709745569811dcbdc57c097fafdd387c6330382"
+  integrity sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==
   dependencies:
     undici-types "~7.16.0"
 
@@ -807,13 +807,6 @@
   integrity sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ==
   dependencies:
     undici-types "~6.21.0"
-
-"@types/node@^24.9.0":
-  version "24.12.4"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.12.4.tgz#2709745569811dcbdc57c097fafdd387c6330382"
-  integrity sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==
-  dependencies:
-    undici-types "~7.16.0"
 
 "@types/readable-stream@^4.0.0", "@types/readable-stream@^4.0.21":
   version "4.0.22"
@@ -1624,10 +1617,10 @@ electron-to-chromium@^1.5.249:
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.262.tgz#c31eed591c6628908451c9ca0f0758ed514aa003"
   integrity sha512-NlAsMteRHek05jRUxUR0a5jpjYq9ykk6+kO0yRaMi5moe7u0fVIOeQ3Y30A8dIiWFBNUoQGi1ljb1i5VtS9WQQ==
 
-electron@^42.1.0:
-  version "42.2.0"
-  resolved "https://registry.yarnpkg.com/electron/-/electron-42.2.0.tgz#513ac2d86c2a3217c17d25f24809bc46d470e7c2"
-  integrity sha512-b2Tc7sIKiZEl0tBVwFM5GJ+FT5KYhmy9QJHjx8BGVZPVW2SctXWEvrE959ElB56qw7H05dBkhlikDA1DmpaAMw==
+electron@^42.3.2:
+  version "42.3.2"
+  resolved "https://registry.yarnpkg.com/electron/-/electron-42.3.2.tgz#5b0fe7955f612d017a40328c298b372372b2d0c8"
+  integrity sha512-R8qL6TMQ+u5r/l1mL6zWqqK3eQo6Bqi4ScmysgODcy+SNR76HQhvbZUEL/9GqNuF0fNFJxphz/bh/TC4jW8NbA==
   dependencies:
     "@electron/get" "^5.0.0"
     "@types/node" "^24.9.0"
