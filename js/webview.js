@@ -784,6 +784,26 @@ const windowEvents = async () => {
         break;
     }
   };
+
+  // Handle runtime side-panel widget visibility (touchkio#168). Unlike the
+  // `web_widget` startup argument — which also gates the pager and navigation
+  // bar — this toggles only the floating side-panel widget overlay, so the main
+  // view layout is unaffected and it can be flipped on/off live via MQTT.
+  WEBVIEW.window.setWidget = (visible) => {
+    if (APP.exiting) {
+      return;
+    }
+    const show = !!visible;
+    WEBVIEW.widgetEnabled = show;
+    if (WEBVIEW.widget) {
+      WEBVIEW.widget.setVisible(show);
+    }
+    if (show) {
+      resizeView();
+    }
+    console.info(`Update Widget: ${show ? "ON" : "OFF"}`);
+  };
+
   WEBVIEW.window.onStatus = () => {
     clearTimeout(WEBVIEW.window.onStatus.timeout);
     WEBVIEW.window.onStatus.timeout = setTimeout(update, 200);

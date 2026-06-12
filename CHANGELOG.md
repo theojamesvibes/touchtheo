@@ -8,6 +8,69 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.6.2] — 2026-06-12
+
+Open-issue catch-up against upstream **TouchKio** (v1.5.0 is the latest upstream
+release and was already ported in 1.6.0, so there is no new release to absorb).
+This release works through the items still **open** on the TouchKio tracker and
+either implements them, mitigates them, or documents the workaround. Audit notes
+for every open upstream issue are kept below under *Upstream issue status*.
+
+### Added
+- **Side-panel widget toggle via MQTT (upstream TouchKio #168).** A new **Widget**
+  switch is exposed over MQTT auto-discovery. It shows/hides the floating
+  side-panel widget at runtime so you can enable it to reproduce a dashboard issue
+  and disable it again without editing `--web-widget` and restarting. Implemented
+  as `WEBVIEW.window.setWidget()` (toggles `widget.setVisible()` + re-layout) and
+  `initWidget()`/`updateWidget()` in the integration. Toggles only the widget
+  overlay — the pager and navigation bar (also gated by `--web-widget` at startup)
+  are intentionally left alone so the main view layout never shifts. Opt out with
+  `mqtt_widget` in `app_disable`.
+
+### Changed
+- **Brightness `0` is now allowed (upstream TouchKio #190).** `setDisplayBrightness`
+  previously clamped/validated to a `1`–`100` range, so PWM/sysfs backlights and
+  `ddcutil` displays could only be dimmed to their minimum, never switched fully
+  off from Home Assistant. The valid range is now `0`–`100` (validation, the `tee`
+  write clamp, and the percentage reader all updated), matching Home Assistant's
+  "brightness 0 = off" semantics.
+- **Package Upgrades sensor no longer stuck at `0` on Raspberry Pi OS (upstream
+  TouchKio #213).** `apt list --upgradable` only reflects the local apt index, which
+  nothing refreshes automatically on headless Raspberry Pi OS — so the count stayed
+  `0` even when upgrades existed. `checkPackageUpgrades` now triggers a **background,
+  non-blocking** `apt-get update` (via `refreshAptCacheIfStale`) — fire-and-forget,
+  guarded by a 12-hour staleness check and run **only when sudo rights are
+  available**, so it touches the network at most twice a day and never blocks the
+  main process. The refreshed index is picked up by the next hourly poll.
+
+### Documentation
+- **v3d GPU freeze on Raspberry Pi 4 / kernel 6.18.x documented (upstream TouchKio
+  #211).** Added a `HARDWARE.md` troubleshooting entry for the `v3d_render_job_timedout`
+  / GPU-reset deadlock that freezes the display after hours of uptime. The fix is the
+  `--disable-gpu` Chromium flag; TouchTheo already forwards unrecognised flags to
+  Chromium (since 1.5.13), so the entry shows how to add it to the service `ExecStart`.
+
+### Upstream issue status
+
+Audit of every **open** [TouchKio issue](https://github.com/leukipp/touchkio/issues)
+against TouchTheo as of this release:
+
+| Upstream | Status in TouchTheo |
+| --- | --- |
+| #213 Package upgrades always 0 | **Fixed** — background `apt-get update` (this release) |
+| #211 v3d GPU hang (Pi 4, kernel 6.18.x) | **Documented + workaround** — `--disable-gpu` forwarded; HARDWARE.md entry (this release) |
+| #197 Wake tap triggers HA via swayidle | **Already fixed** in 1.5.12 / 1.5.14 / 1.5.15 (display off/`waking` tap discard + CDP re-attach) |
+| #190 Allow brightness 0 | **Fixed** — 0–100 range (this release) |
+| #168 Side panel widget toggle via MQTT | **Implemented** — Widget switch (this release) |
+| #169 Increased CPU since 1.2.0 | **Mitigated** — `mqtt_screenshot` disabled by default + per-minute capture gated when off |
+| #96 Pre-release testers / early channel | **Supported** — `app_early` arg (early install, prerelease filter, `update early`) |
+| #111 Granular sudoers | **Aligned** — TouchTheo avoids the blanket `NOPASSWD:ALL` pattern; detects rights via `sudo -n` and degrades gracefully |
+| #188 Spotify/Disney+ DRM (Widevine) | **Not addressed** — stock Electron lacks the Widevine CDM; out of scope |
+| #166 Gnome screen control | **Out of scope** — TouchTheo targets Wayland/labwc on Raspberry Pi, not GNOME/Ubuntu desktops |
+| #165 X11 on-screen keyboard | **Out of scope** — TouchTheo targets Wayland (squeekboard), not X11 |
+| #164 Bootable Raspberry Pi image | **Not planned** — packaging effort; `install.sh`/migration scripts cover setup |
+| #183 Unifi Protect support | **Not addressed** — niche third-party webview login issue, not TouchKio-specific |
+
 ## [1.6.1] — 2026-05-25
 
 Maintenance / tooling release. **No application code changed since 1.6.0**, so the

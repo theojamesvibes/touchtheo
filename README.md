@@ -215,6 +215,13 @@ For example:
 touchtheo --web-url=http://192.168.1.42:8123 --mqtt-url=mqtt://192.168.1.42:1883 --mqtt-user=kiosk --mqtt-password=password
 ```
 
+Among the auto-discovered entities are a few worth calling out:
+- **Widget** (switch) — shows or hides the floating side-panel widget at runtime, so you can flip it on to troubleshoot a dashboard and back off without editing `--web-widget` and restarting ([touchkio#168](https://github.com/leukipp/touchkio/issues/168)).
+- **Display** (light) — brightness now accepts **0** to switch PWM/sysfs backlights and `ddcutil` displays fully off, not just down to the minimum ([touchkio#190](https://github.com/leukipp/touchkio/issues/190)).
+- **Package Upgrades** (sensor) — on headless Raspberry Pi OS nothing refreshes the apt index automatically, so this used to stay at `0`. TouchTheo now runs a background `apt-get update` (at most twice a day, only when it has sudo rights) so the count reflects reality ([touchkio#213](https://github.com/leukipp/touchkio/issues/213)).
+
+Any of these can be turned off by adding its key (e.g. `mqtt_widget`, `mqtt_package_upgrades`) to the `app_disable` list in `Arguments.json`.
+
 ## User Interface
 TouchTheo provides a simple webview window designed specifically for Touch Displays. Electron apps are known to be resource intensive due to their architecture and the inclusion of a full web browser environment. If you just run the kiosk application without other heavy loads, everything should run smoothly.
 

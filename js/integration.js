@@ -75,6 +75,7 @@ const init = async () => {
       initVolume();
       initMicrophone();
       initKeyboard();
+      initWidget();
       initPageNumber();
       initPageZoom();
       initPageUrl();
@@ -663,6 +664,47 @@ const updateKeyboard = async () => {
   if (ARGS.app_disable.includes("mqtt_keyboard")) return;
   const visibility = hardware.getKeyboardVisibility();
   publishState("keyboard", visibility);
+};
+
+/**
+ * Initializes the side-panel widget toggle and handles the execute logic.
+ *
+ * Exposes the floating side-panel widget as an MQTT switch so it can be shown or
+ * hidden at runtime without editing the `web_widget` argument (touchkio#168).
+ */
+const initWidget = () => {
+  const root = `${INTEGRATION.root}/widget`;
+  const config = {
+    name: "Widget",
+    unique_id: `${INTEGRATION.node}_widget`,
+    command_topic: `${root}/set`,
+    state_topic: `${root}/state`,
+    icon: "mdi:dock-right",
+    device: INTEGRATION.device,
+  };
+  if (ARGS.app_disable.includes("mqtt_widget")) {
+    removeConfig("switch", config);
+    return;
+  }
+  publishConfig("switch", config)
+    .on("message", (topic, message) => {
+      if (topic === config.command_topic) {
+        const status = message.toString();
+        console.verbose("Set Widget Visibility:", status);
+        WEBVIEW.window.setWidget(status === "ON");
+        updateWidget();
+      }
+    })
+    .subscribe(config.command_topic);
+  updateWidget();
+};
+
+/**
+ * Updates the side-panel widget visibility via the mqtt connection.
+ */
+const updateWidget = async () => {
+  if (ARGS.app_disable.includes("mqtt_widget")) return;
+  publishState("widget", WEBVIEW.widgetEnabled ? "ON" : "OFF");
 };
 
 /**

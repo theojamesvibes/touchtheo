@@ -881,7 +881,7 @@ const getDisplayBrightness = () => {
       const brightness = readFile(path.join(HARDWARE.display.brightness.path, "brightness"));
       if (brightness) {
         const max = HARDWARE.display.brightness.value.max || 1;
-        return Math.max(1, Math.min(Math.round((parseInt(brightness, 10) / max) * 100), 100));
+        return Math.max(0, Math.min(Math.round((parseInt(brightness, 10) / max) * 100), 100));
       }
   }
   return null;
@@ -890,10 +890,12 @@ const getDisplayBrightness = () => {
 /**
  * Sets the display brightness level using the available command.
  *
- * This function takes a brightness value between 1 to 100 percent,
- * maps it to the proper range and writes it to the system.
+ * This function takes a brightness value between 0 to 100 percent,
+ * maps it to the proper range and writes it to the system. A value of 0 is
+ * allowed so PWM/sysfs backlights and `ddcutil` displays can be switched fully
+ * off from Home Assistant (touchkio#190), not just dimmed to the minimum.
  *
- * @param {number} brightness - The desired brightness level (1-100).
+ * @param {number} brightness - The desired brightness level (0-100).
  * @param {Function} callback - A callback function that receives the output or error.
  */
 const setDisplayBrightness = (brightness, callback = null) => {
@@ -901,8 +903,8 @@ const setDisplayBrightness = (brightness, callback = null) => {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
-  if (typeof brightness !== "number" || brightness < 1 || brightness > 100) {
-    console.error("Brightness must be a number between 1 and 100");
+  if (typeof brightness !== "number" || brightness < 0 || brightness > 100) {
+    console.error("Brightness must be a number between 0 and 100");
     if (typeof callback === "function") callback(null, "Invalid brightness");
     return;
   }
@@ -916,7 +918,7 @@ const setDisplayBrightness = (brightness, callback = null) => {
     case "tee":
       const max = HARDWARE.display.brightness.value.max || 1;
       const file = path.join(HARDWARE.display.brightness.path, "brightness");
-      const value = Math.max(1, Math.min(Math.round((brightness / 100) * max), max));
+      const value = Math.max(0, Math.min(Math.round((brightness / 100) * max), max));
       const proc = execAsyncCommand("sudo", ["tee", file], callback);
       proc.stdin.write(value.toString());
       proc.stdin.end();
@@ -1086,6 +1088,54 @@ const setKeyboardVisibility = (visibility, callback = null) => {
   dbusCall("/sm/puri/OSK0", "SetVisible", [`boolean:${visible}`], callback);
 };
 
+// Refresh the apt package index at most this often (12h). `apt list --upgradable`
+// only reports what is already in the local cache, so on headless Raspberry Pi OS
+// — where nothing runs `apt update` automatically — the upgrade count stays 0
+// even when upgrades exist (touchkio#213). We refresh it ourselves, but rarely.
+const APT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Refreshes the apt package index in the background when it is stale.
+ *
+ * Runs `apt-get update` fire-and-forget (never blocks the main process) and only
+ * when sudo rights are available and the cache is older than `APT_CACHE_MAX_AGE_MS`.
+ * The refreshed index is picked up by the next `checkPackageUpgrades` poll, so the
+ * Package Upgrades sensor stops being stuck at 0 on Raspberry Pi OS (touchkio#213).
+ */
+const refreshAptCacheIfStale = () => {
+  if (!sudoRights() || _cache.aptUpdating) {
+    return;
+  }
+  try {
+    // Prefer unattended-upgrades' success stamp, fall back to the lists dir mtime.
+    const stamp = "/var/lib/apt/periodic/update-success-stamp";
+    const lists = "/var/lib/apt/lists";
+    let mtime = 0;
+    if (fs.existsSync(stamp)) {
+      mtime = fs.statSync(stamp).mtimeMs;
+    } else if (fs.existsSync(lists)) {
+      mtime = fs.statSync(lists).mtimeMs;
+    }
+    if (mtime && Date.now() - mtime < APT_CACHE_MAX_AGE_MS) {
+      return;
+    }
+    _cache.aptUpdating = true;
+    const proc = cpr.spawn("sudo", ["apt-get", "update"], {
+      stdio: "ignore",
+      detached: true,
+    });
+    proc.on("error", () => {
+      _cache.aptUpdating = false;
+    });
+    proc.on("close", () => {
+      _cache.aptUpdating = false;
+    });
+    proc.unref();
+  } catch {
+    _cache.aptUpdating = false;
+  }
+};
+
 /**
  * Checks if system upgrades are available using `apt`.
  *
@@ -1095,6 +1145,8 @@ const checkPackageUpgrades = () => {
   if (!commandExists("apt")) {
     return [];
   }
+  // Keep the local apt index fresh so the count reflects reality (touchkio#213).
+  refreshAptCacheIfStale();
   try {
     // Suppress apt warnings via stdio rather than shell redirection in args.
     const result = cpr.spawnSync("apt", ["list", "--upgradable"], {

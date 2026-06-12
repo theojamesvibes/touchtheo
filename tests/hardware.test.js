@@ -16,6 +16,7 @@ const { test, mock } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
+const cpr = require("child_process");
 
 const hardware = require("../js/hardware");
 
@@ -104,4 +105,75 @@ test("getNetworkAddresses: groups external addresses by interface + family, skip
   assert.deepEqual(hardware.getNetworkAddresses(), {
     Eth0: { IPv4: ["192.168.1.42"], IPv6: ["fe80::1"] },
   });
+});
+
+// setDisplayBrightness — guard the touchkio#190 divergence: brightness 0 must be a
+// valid value (fully off) so a future upstream catchup can't silently re-clamp to 1.
+// We stub the cpr.spawn boundary so nothing actually runs, and assert on what was
+// passed through. (ddcutil path keeps it side-effect free: its fs.writeFileSync only
+// runs from the proc "close" callback, which our stub never emits.)
+const withBrightnessHardware = (t, command) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  global.HARDWARE = {
+    support: { displayBrightness: true },
+    display: { brightness: { command, path: "/sys/class/backlight/x", value: { max: 100 } } },
+  };
+  const spawned = [];
+  t.mock.method(cpr, "spawn", (cmd, args) => {
+    spawned.push(args);
+    return { stdout: { on() {} }, stderr: { on() {} }, on() {}, stdin: { write() {}, end() {} } };
+  });
+  return spawned;
+};
+
+test("setDisplayBrightness: accepts 0 to switch the display fully off (touchkio#190)", (t) => {
+  const spawned = withBrightnessHardware(t, "ddcutil");
+  let rejected = false;
+  hardware.setDisplayBrightness(0, (_reply, error) => {
+    if (error === "Invalid brightness") rejected = true;
+  });
+  assert.equal(rejected, false, "0 must not be rejected as invalid");
+  assert.ok(
+    spawned.some((args) => args.join(" ") === "ddcutil setvcp 0x10 0"),
+    "ddcutil should be told to set brightness 0",
+  );
+});
+
+test("setDisplayBrightness: tee path writes 0 (not clamped to 1) for brightness 0 (touchkio#190)", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  global.HARDWARE = {
+    support: { displayBrightness: true },
+    display: { brightness: { command: "tee", path: "/sys/class/backlight/x", value: { max: 255 } } },
+  };
+  let written = null;
+  t.mock.method(cpr, "spawn", () => ({
+    stdout: { on() {} },
+    stderr: { on() {} },
+    on() {},
+    stdin: {
+      write(v) {
+        written = v;
+      },
+      end() {},
+    },
+  }));
+  hardware.setDisplayBrightness(0);
+  assert.equal(written, "0", "sysfs backlight should receive 0, not a clamped 1");
+});
+
+test("setDisplayBrightness: still rejects out-of-range values (-1 and 101)", (t) => {
+  withBrightnessHardware(t, "ddcutil");
+  for (const bad of [-1, 101]) {
+    let error = null;
+    hardware.setDisplayBrightness(bad, (_reply, err) => {
+      error = err;
+    });
+    assert.equal(error, "Invalid brightness", `${bad} should be rejected`);
+  }
 });
