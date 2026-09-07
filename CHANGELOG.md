@@ -8,6 +8,120 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.6.3] — 2026-09-07
+
+Catch-up against upstream **TouchKio v1.5.1** (2026-08-30) and **v1.5.2**
+(2026-09-07). TouchTheo was last aligned with upstream v1.5.0 in 1.6.0, so all
+19 upstream commits since then were reviewed and the applicable ones ported.
+Ships alongside an operational hardening pass on CI and process failure handling.
+
+> **Not yet verified on hardware.** The code changes are covered by 16 unit tests
+> in CI, but nothing in this release has been run on a Raspberry Pi. The Electron
+> 42 → 44 bump in particular deserves a smoke test before this is rolled out.
+
+### Added
+- **Release indicator in the status bar (upstream TouchKio #70).** A blue download
+  button appears in the framed status bar when a newer TouchTheo release is
+  published, and opens the release page in the active view. Hidden while up to date.
+- **Granular permission probing (upstream TouchKio #111).** `reboot`, `shutdown`
+  and `apt install` rights are now probed individually with `sudo -n <cmd> --help`
+  instead of being inferred from one blanket `sudo -n true`. A sudoers policy that
+  only whitelists `reboot` now surfaces the Reboot button without having to grant
+  everything else.
+- **Six new unit tests** covering the ported behaviour: ddcutil standby states, the
+  ddcutil brightness scaling in both directions, and the sudo/no-sudo `tee` split.
+  These also pin the brightness-`0` divergence so a future catch-up cannot re-clamp it.
+- **CI syntax and format gates.** `test.yml` now runs `node --check` over every
+  source file and a `prettier --check` pass before the unit tests.
+- **Process failure handlers (`index.js`).** Unhandled promise rejections are logged
+  and survived rather than terminating the process — on a wall-mounted kiosk that
+  previously meant a blank screen until systemd restarted the unit ten seconds
+  later. Uncaught exceptions still exit, but with a logged stack and a non-zero code
+  so `Restart=on-failure` has something to work with. `app.whenReady()` gained the
+  rejection handler it never had.
+
+### Changed
+- **`HARDWARE.support.access` replaces `sudoRights` and `appUpdate` (breaking, MQTT
+  attributes).** The Model sensor's attributes now carry an `access` object with
+  `sudo`, `reboot`, `shutdown`, `install`, `service` and `deb`. The two old keys are
+  gone. Attributes are informational, so nothing in Home Assistant breaks, but any
+  template referencing `sudoRights` or `appUpdate` needs updating.
+- **The App update entity is always published (upstream TouchKio #70).** Home
+  Assistant now reports that a newer TouchTheo release exists even on devices that
+  cannot install it themselves. The **Install** button only appears when the device
+  was installed from the `.deb`, runs `touchtheo.service`, and has password-less
+  `sudo apt` rights.
+- **Screenshot and Heartbeat are published non-retained.** Retaining them meant a
+  broker restart replayed a stale screenshot and a "last seen" timestamp that
+  predated the device actually being up. Both republish on their normal interval.
+- **Display light declares and reports a single color mode (upstream TouchKio
+  #236).** The discovery config no longer declares `onoff` and then overwrite it
+  with `brightness`; the active mode is published on `display/color_mode/state`.
+- **ddcutil brightness is normalised against the display's own max.** A panel
+  reporting on a 0–255 scale previously published its raw value, so 50% showed up
+  as 127%. Reads and writes are both scaled now.
+- **`app_reset` accepts `session` as well as `storage`.** Upstream renamed the key
+  in 1.5.1; both spellings work here so existing `Arguments.json` files keep working.
+- **Refresh and Home also clear service workers (upstream TouchKio #217).** A single
+  `clearData()` helper replaces the three separate clearing paths; a full reset now
+  uses `session.clearData()`.
+- **Window chrome:** `hasShadow: false` and a larger minimum window size (136 → 188),
+  matching upstream.
+- **`release.yml` installs with `--frozen-lockfile` and runs the unit tests before
+  publishing.** Previously a drifted `yarn.lock` could silently resolve different
+  versions into the shipped `.deb`, and a tag push published without running a test.
+- **`actions/checkout` and `actions/setup-node` bumped to v7** (supersedes Dependabot
+  PRs #6 and #8).
+- **Dependencies bumped to match upstream v1.5.2:** Electron `42.1.0` → `44.2.0`,
+  axios `1.16.1` → `1.20.0`, mqtt `5.15.1` → `5.15.2`, prettier `3.8.3` → `3.9.6`,
+  `@electron-forge/*` `7.11.1` → `7.11.2`. Kept as a separate commit so the Chromium
+  jump can be reverted independently.
+- **`index.js` and `js/integration.js` reformatted with prettier.** Both had drifted
+  from the repo's own config, which inflated every upstream catch-up diff.
+
+### Fixed
+- **Display in standby reported as unavailable (upstream TouchKio #232).** The
+  ddcutil DPMS regex only matched power states `x01` and `x04`, so a display in
+  standby (`x02`, `x03`, `x05`) returned `null` and took the MQTT light entity
+  unavailable instead of showing `OFF`.
+- **Brightness control required sudo even when it wasn't needed (upstream TouchKio
+  #233).** A udev rule that grants the session user write access to
+  `/sys/class/backlight/*/brightness` is now detected, and `tee` runs without `sudo`.
+- **Update progress `0` published as `null` (upstream TouchKio #241).** `in_progress`
+  was `null` rather than a boolean during the first progress tick, which Home
+  Assistant rejects.
+- **41 dead documentation links.** Every `#NNN` issue and PR reference in
+  `HARDWARE.md` and `README.md` had been rewritten to `theojamesvibes/touchtheo`
+  during the fork rename — a repository with no issue tracker, so all 41 were dead.
+  They point back at `leukipp/touchkio` again.
+
+### Deliberate divergences from upstream
+- **Brightness `0` stays valid (TouchKio #190).** Upstream v1.5.1 re-clamps to a
+  minimum of `1` in `getDisplayBrightness`, both `setDisplayBrightness` paths and the
+  ddcutil scaling. All four were ported with a floor of `0`, and the unit tests fail
+  if that regresses.
+- **`initApp` only subscribes when a command topic exists.** Upstream passes an
+  undefined topic to `mqtt.js` whenever install rights are missing.
+- **`HARDWARE.support.access` is read with optional chaining throughout**, so a
+  partially initialised support object degrades to "unsupported" rather than throwing
+  inside the MQTT publish loop.
+- **`latestRelease()` is not gated on `mqtt_app`** (pre-existing divergence, now load
+  bearing) so the status-bar release indicator works with MQTT app updates disabled.
+
+### Not ported
+- **`mqtt_user` prompt default `kiosk` → `user`.** Cosmetic churn in the setup prompt
+  for a fork that already ships under its own name.
+
+### Docs
+- `HARDWARE.md`: requirements table rewritten for the granular rights model, plus the
+  previously missing Illuminance and Microphone rows; added the Official 10" Touch
+  Display 2 (1200x1920) support row and the ddcutil/`wlopm` interaction note.
+- `README.md`: documented the always-published App entity, the non-retained
+  Screenshot/Heartbeat, and the `wayvnc` + `wlopm` conflict — display power control
+  fails while a VNC client is connected ([touchkio#210](https://github.com/leukipp/touchkio/issues/210)).
+
+---
+
 ## [1.6.2] — 2026-06-12
 
 Open-issue catch-up against upstream **TouchKio** (v1.5.0 is the latest upstream

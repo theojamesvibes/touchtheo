@@ -11,6 +11,8 @@ Additional releases for other Linux systems are available as **.zip** file.
 
 [![display](https://raw.githubusercontent.com/theojamesvibes/touchtheo/main/img/display.png)](https://github.com/theojamesvibes/touchtheo/blob/main/img/display.png)
 
+The current version is recorded in [VERSION](https://github.com/theojamesvibes/touchtheo/blob/main/VERSION); every release is documented in [CHANGELOG.md](https://github.com/theojamesvibes/touchtheo/blob/main/CHANGELOG.md), including which upstream **TouchKio** release each catch-up absorbed and which Raspberry Pi 5 divergences are deliberately kept.
+
 This implementation addresses common issues encountered when using the built-in browser running in fullscreen mode on a Linux device with Touch Display.
 Moreover, the device running the **kiosk application** also offers several **Home Assistant MQTT** sensors, enhancing it's functionality for automation purposes.
 
