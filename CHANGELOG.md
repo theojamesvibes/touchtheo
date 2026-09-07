@@ -90,6 +90,15 @@ Ships alongside an operational hardening pass on CI and process failure handling
 - **Update progress `0` published as `null` (upstream TouchKio #241).** `in_progress`
   was `null` rather than a boolean during the first progress tick, which Home
   Assistant rejects.
+- **Display control unsupported on console-autologin sessions (upstream TouchKio
+  #239, still open upstream).** Raspberry Pi OS with console autologin starts
+  labwc from a tty, so both `XDG_SESSION_TYPE` and `loginctl ... -p Type` report
+  `tty`. The display command mapping only has `wayland`/`x11` entries, so
+  `displayStatus` and `displayBrightness` came out permanently unsupported —
+  no display power, no brightness — on a very common Pi setup. `sessionType()`
+  now falls back to `WAYLAND_DISPLAY`/`DISPLAY`, which are set for the process
+  that actually talks to the display server. Not an upstream port: upstream has
+  not fixed this yet.
 - **41 dead documentation links.** Every `#NNN` issue and PR reference in
   `HARDWARE.md` and `README.md` had been rewritten to `theojamesvibes/touchtheo`
   during the fork rename — a repository with no issue tracker, so all 41 were dead.

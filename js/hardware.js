@@ -284,14 +284,35 @@ const sessionType = () => {
   if (envType === "wayland" || envType === "x11") {
     return envType;
   }
-  if (!commandExists("loginctl")) {
-    return null;
+  let type = null;
+  if (commandExists("loginctl")) {
+    type =
+      (
+        execSyncCommand("loginctl", [
+          "show-session",
+          "$(loginctl show-user $(whoami) -p Display --value)",
+          "-p Type --value",
+        ]) || ""
+      )
+        .trim()
+        .toLowerCase() || null;
   }
-  return execSyncCommand("loginctl", [
-    "show-session",
-    "$(loginctl show-user $(whoami) -p Display --value)",
-    "-p Type --value",
-  ]);
+  if (type === "wayland" || type === "x11") {
+    return type;
+  }
+  // A console-autologin session reports Type=tty even when labwc/Wayland is
+  // running on top of it, and the display command mapping has no "tty" entry —
+  // so displayStatus and displayBrightness came out permanently unsupported
+  // (touchkio#239, still open upstream). The compositor socket variables are set
+  // for the process that actually talks to the display server, so fall back to
+  // those. index.js already refuses to start without one of them.
+  if (process.env.WAYLAND_DISPLAY) {
+    return "wayland";
+  }
+  if (process.env.DISPLAY) {
+    return "x11";
+  }
+  return type;
 };
 
 /**
@@ -1562,6 +1583,7 @@ const interval = (callback, ms) => {
 module.exports = {
   init,
   update,
+  sessionType,
   getModel,
   getVendor,
   getSerialNumber,

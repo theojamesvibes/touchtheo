@@ -269,3 +269,58 @@ test("setDisplayBrightness: tee still uses sudo when only sudo grants write acce
   hardware.setDisplayBrightness(40);
   assert.deepEqual(spawned, [["sudo", "tee", "/sys/class/backlight/x/brightness"]]);
 });
+
+// sessionType — touchkio#239. Raspberry Pi OS with console autologin starts
+// labwc from a tty session, so both XDG_SESSION_TYPE and `loginctl ... -p Type`
+// report "tty". The display command mapping only has wayland/x11 entries, so
+// display power and brightness came out unsupported on a very common Pi setup.
+
+/**
+ * Runs sessionType() with a controlled environment.
+ * @param {object} t - the node:test context.
+ * @param {object} env - environment variables to set (undefined deletes).
+ * @param {string|null} loginctl - what `loginctl ... -p Type --value` returns.
+ */
+const withSession = (t, env, loginctl) => {
+  const keys = ["XDG_SESSION_TYPE", "WAYLAND_DISPLAY", "DISPLAY"];
+  const prev = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  t.after(() => {
+    for (const k of keys) {
+      if (prev[k] === undefined) delete process.env[k];
+      else process.env[k] = prev[k];
+    }
+  });
+  for (const k of keys) {
+    if (env[k] === undefined) delete process.env[k];
+    else process.env[k] = env[k];
+  }
+  t.mock.method(cpr, "execSync", (cmd) => {
+    if (cmd.startsWith("which ")) return "/usr/bin/loginctl\n";
+    return loginctl === null ? "" : `${loginctl}\n`;
+  });
+};
+
+test("sessionType: XDG_SESSION_TYPE wins when it is a real display session", (t) => {
+  withSession(t, { XDG_SESSION_TYPE: "wayland", DISPLAY: ":0" }, "tty");
+  assert.equal(hardware.sessionType(), "wayland");
+});
+
+test("sessionType: loginctl wins over the socket fallback", (t) => {
+  withSession(t, { XDG_SESSION_TYPE: "tty", WAYLAND_DISPLAY: "wayland-0" }, "x11");
+  assert.equal(hardware.sessionType(), "x11");
+});
+
+test("sessionType: tty autologin falls back to WAYLAND_DISPLAY (touchkio#239)", (t) => {
+  withSession(t, { XDG_SESSION_TYPE: "tty", WAYLAND_DISPLAY: "wayland-0", DISPLAY: ":0" }, "tty");
+  assert.equal(hardware.sessionType(), "wayland", "labwc on a tty session must not report tty");
+});
+
+test("sessionType: tty autologin under X11 falls back to DISPLAY (touchkio#239)", (t) => {
+  withSession(t, { XDG_SESSION_TYPE: "tty", DISPLAY: ":0" }, "tty");
+  assert.equal(hardware.sessionType(), "x11");
+});
+
+test("sessionType: no display server at all still reports what loginctl said", (t) => {
+  withSession(t, { XDG_SESSION_TYPE: "tty" }, "tty");
+  assert.equal(hardware.sessionType(), "tty");
+});
