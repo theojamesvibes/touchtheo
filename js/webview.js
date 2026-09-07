@@ -48,11 +48,11 @@ const init = async () => {
     return app.quit();
   }
 
-  // Clear cache and storage
-  await session.defaultSession.clearCache();
-  if (ARGS.app_reset.includes("storage")) {
-    await session.defaultSession.clearStorageData();
-  }
+  // Clear cache or full session. Upstream renamed the reset key "storage" to
+  // "session" in TouchKio 1.5.1; both are accepted here so existing
+  // Arguments.json files keep working.
+  const fullReset = ARGS.app_reset.includes("session") || ARGS.app_reset.includes("storage");
+  await clearData({ cache: true, session: fullReset });
 
   // Parse arguments
   const debug = "app_debug" in ARGS;
@@ -139,12 +139,13 @@ const init = async () => {
   WEBVIEW.window = new BaseWindow({
     title: APP.title,
     icon: APP.icon,
+    hasShadow: false,
     autoHideMenuBar: true,
     frame: !WEBVIEW.statusEnabled,
     width: Math.floor(WEBVIEW.display.width * 0.85),
     height: Math.floor(WEBVIEW.display.height * 0.75),
-    minWidth: 136,
-    minHeight: 136,
+    minWidth: 188,
+    minHeight: 188,
   });
 
   // Init global webview
@@ -305,7 +306,8 @@ const updateView = () => {
 
   // Build window title
   const host = url.startsWith("data:") ? "whoopsie" : new URL(url).host;
-  const title = `${APP.title} - ${host} (${WEBVIEW.viewActive})`;
+  const name = host.includes("github") ? `${APP.title} v${APP.version}` : APP.title;
+  const title = `${name} - ${host} (${WEBVIEW.viewActive})`;
   const previous = WEBVIEW.window.getTitle();
 
   // Update window title
@@ -521,6 +523,28 @@ const toggleStatus = (force = null) => {
 };
 
 /**
+ * Clears internal and webview application data.
+ *
+ * @param {Object} [options] - Options for which application data to clear.
+ * @param {boolean} [options.logs] - Clear internal memory logs.
+ * @param {boolean} [options.history] - Clear navigation history of views.
+ * @param {boolean} [options.cache] - Clear cache and service workers.
+ * @param {boolean} [options.session] - Clear full session data.
+ * @returns {Promise<void>}
+ */
+const clearData = async ({ logs = false, history = false, cache = false, session: full = false } = {}) => {
+  if (logs || full) {
+    APP.logs = [];
+  }
+  if (history || full) {
+    (WEBVIEW.views || []).forEach((view) => view.webContents.navigationHistory.clear());
+  }
+  if (cache || full) {
+    return session.defaultSession.clearData(full ? {} : { dataTypes: ["cache", "serviceWorkers"] });
+  }
+};
+
+/**
  * Decreases page zoom on the active webview.
  */
 const zoomMinus = () => {
@@ -597,7 +621,7 @@ const nextView = () => {
 /**
  * Reloads the default url and settings on the active webview.
  */
-const homeView = () => {
+const homeView = async () => {
   if (!WEBVIEW.viewActive) {
     return;
   }
@@ -605,10 +629,8 @@ const homeView = () => {
   const defaultUrl = WEBVIEW.viewUrls[WEBVIEW.viewActive];
   const currentUrl = view.webContents.getURL();
 
-  // Clear logs, cache and history
-  APP.logs = [];
-  view.webContents.session.clearCache();
-  view.webContents.navigationHistory.clear();
+  // Clear logs, history and cache
+  await clearData({ logs: true, history: true, cache: true });
 
   // Reset page zoom and theme
   WEBVIEW.zoom.reset();
@@ -625,7 +647,7 @@ const homeView = () => {
 /**
  * Reloads the current url on the active webview.
  */
-const reloadView = () => {
+const reloadView = async () => {
   if (!WEBVIEW.viewActive) {
     return;
   }
@@ -634,8 +656,7 @@ const reloadView = () => {
   const currentUrl = view.webContents.getURL();
 
   // Clear logs and cache
-  APP.logs = [];
-  view.webContents.session.clearCache();
+  await clearData({ logs: true, cache: true });
 
   // Reload the default url or refresh the page
   if (currentUrl.startsWith("data:")) {
@@ -941,12 +962,19 @@ const statusEvents = async () => {
     console.debug(`webview.js: statusEvents(button-click-${button.id})`);
     WEBVIEW.tracker.pointer.time = new Date();
     switch (button.id) {
+      case "release":
+        const latest = APP.releases.latest;
+        if (WEBVIEW.viewActive && latest?.url) {
+          WEBVIEW.views[WEBVIEW.viewActive].webContents.loadURL(latest.url);
+        }
+        break;
       case "minimize":
         WEBVIEW.window.setStatus("Minimized");
         break;
       case "terminate":
-        WEBVIEW.status.webContents.send("button-disabled", { id: "fullscreen", disabled: true });
+        WEBVIEW.status.webContents.send("button-disabled", { id: "release", disabled: true });
         WEBVIEW.status.webContents.send("button-disabled", { id: "minimize", disabled: true });
+        WEBVIEW.status.webContents.send("button-disabled", { id: "fullscreen", disabled: true });
         WEBVIEW.status.webContents.send("button-disabled", { id: "terminate", disabled: true });
         const button = dialog.showMessageBoxSync(WEBVIEW.window, {
           type: "question",
@@ -959,8 +987,9 @@ const statusEvents = async () => {
             WEBVIEW.window.setStatus("Terminated");
             break;
           default:
-            WEBVIEW.status.webContents.send("button-disabled", { id: "fullscreen", disabled: false });
+            WEBVIEW.status.webContents.send("button-disabled", { id: "release", disabled: false });
             WEBVIEW.status.webContents.send("button-disabled", { id: "minimize", disabled: false });
+            WEBVIEW.status.webContents.send("button-disabled", { id: "fullscreen", disabled: false });
             WEBVIEW.status.webContents.send("button-disabled", { id: "terminate", disabled: false });
         }
         break;
@@ -1286,6 +1315,21 @@ const appEvents = async () => {
       WEBVIEW.window.setStatus("Maximized");
     } else if (visibility === "OFF" && ["Maximized"].includes(status)) {
       WEBVIEW.window.setStatus("Fullscreen");
+    }
+  });
+  EVENTS.on("updateApp", () => {
+    // Reveal the status-bar release button when a newer version is published
+    // (touchkio#70). Only meaningful while the framed status bar is in use.
+    if (!WEBVIEW.statusEnabled || APP.exiting) {
+      return;
+    }
+    const latest = APP.releases.latest;
+    if (latest?.version) {
+      const outdated = APP.version.localeCompare(latest.version, "en", { numeric: true }) < 0;
+      WEBVIEW.status.webContents.send("button-hidden", {
+        id: "release",
+        hidden: !outdated,
+      });
     }
   });
 

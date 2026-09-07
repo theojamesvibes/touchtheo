@@ -187,20 +187,37 @@ const update = async () => {
 };
 
 /**
+ * Publishes a payload via the mqtt connection.
+ *
+ * @param {string} root - The mqtt topic.
+ * @param {string} payload - The payload to publish.
+ * @param {boolean} [retain] - Whether to retain the message.
+ * @param {number} [qos] - The quality of service level.
+ * @returns {Object} Instance of the mqtt client.
+ */
+const publish = (root, payload, retain = true, qos = 1) => {
+  if (root === null || payload === null) {
+    return INTEGRATION.client;
+  }
+  return INTEGRATION.client.publish(root, payload, { qos, retain });
+};
+
+/**
  * Removes the auto-discovery config via the mqtt connection.
  *
  *  @param {string} type - The entity type name.
  *  @param {Object} config - The configuration object.
+ *  @param {boolean} [retain] - Whether to retain the message.
  *  @returns {Object} Instance of the mqtt client.
  */
-const removeConfig = (type, config) => {
+const removeConfig = (type, config, retain = true) => {
   if (type === null || config === null) {
     return INTEGRATION.client;
   }
   const path = config.unique_id.replace(`${INTEGRATION.node}_`, "");
   const root = `${INTEGRATION.discovery}/${type}/${INTEGRATION.node}/${path}/config`;
   console.debug(`integration.js: removeConfig(${path})`);
-  return INTEGRATION.client.publish(root, JSON.stringify({}), { qos: 1, retain: true });
+  return publish(root, JSON.stringify({}), retain);
 };
 
 /**
@@ -208,16 +225,17 @@ const removeConfig = (type, config) => {
  *
  *  @param {string} type - The entity type name.
  *  @param {Object} config - The configuration object.
+ *  @param {boolean} [retain] - Whether to retain the message.
  *  @returns {Object} Instance of the mqtt client.
  */
-const publishConfig = (type, config) => {
+const publishConfig = (type, config, retain = true) => {
   if (type === null || config === null) {
     return INTEGRATION.client;
   }
   const path = config.unique_id.replace(`${INTEGRATION.node}_`, "");
   const root = `${INTEGRATION.discovery}/${type}/${INTEGRATION.node}/${path}/config`;
   console.debug(`integration.js: publishConfig(${path})`);
-  return INTEGRATION.client.publish(root, JSON.stringify(config), { qos: 1, retain: true });
+  return publish(root, JSON.stringify(config), retain);
 };
 
 /**
@@ -225,14 +243,15 @@ const publishConfig = (type, config) => {
  *
  *  @param {string} path - The entity path name.
  *  @param {Object} attributes - The attributes object.
+ *  @param {boolean} [retain] - Whether to retain the message.
  *  @returns {Object} Instance of the mqtt client.
  */
-const publishAttributes = (path, attributes) => {
+const publishAttributes = (path, attributes, retain = true) => {
   if (path === null || attributes === null) {
     return INTEGRATION.client;
   }
   const root = `${INTEGRATION.root}/${path}/attributes`;
-  return INTEGRATION.client.publish(root, JSON.stringify(attributes), { qos: 1, retain: true });
+  return publish(root, JSON.stringify(attributes), retain);
 };
 
 /**
@@ -240,14 +259,15 @@ const publishAttributes = (path, attributes) => {
  *
  *  @param {string} path - The entity path name.
  *  @param {string|number} state - The state value.
+ *  @param {boolean} [retain] - Whether to retain the message.
  *  @returns {Object} Instance of the mqtt client.
  */
-const publishState = (path, state) => {
+const publishState = (path, state, retain = true) => {
   if (path === null || state === null) {
     return INTEGRATION.client;
   }
   const root = `${INTEGRATION.root}/${path}/state`;
-  return INTEGRATION.client.publish(root, `${state}`, { qos: 1, retain: true });
+  return publish(root, `${state}`, retain);
 };
 
 /**
@@ -255,34 +275,45 @@ const publishState = (path, state) => {
  */
 const initApp = () => {
   const root = `${INTEGRATION.root}/app`;
+  // The update entity is published even when this device cannot install the
+  // update itself, so Home Assistant still shows that a newer release exists
+  // (touchkio#70). The install command topic is only offered when a
+  // password-less `apt install` can actually run against a deb service install.
   const config = {
     name: "App",
     unique_id: `${INTEGRATION.node}_app`,
-    command_topic: `${root}/install`,
     state_topic: `${root}/version/state`,
-    payload_install: "app_early" in ARGS ? "update early" : "update",
     device: INTEGRATION.device,
+    ...(HARDWARE.support.access?.install &&
+      HARDWARE.support.access?.service &&
+      HARDWARE.support.access?.deb && {
+        command_topic: `${root}/install`,
+        payload_install: "app_early" in ARGS ? "update early" : "update",
+      }),
   };
-  if (!HARDWARE.support.appUpdate || ARGS.app_disable.includes("mqtt_app")) {
+  if (ARGS.app_disable.includes("mqtt_app")) {
     removeConfig("update", config);
     return;
   }
-  publishConfig("update", config)
-    .on("message", (topic, message) => {
-      if (topic === config.command_topic) {
-        console.info("Update App...");
-        hardware.setDisplayStatus("ON", () => {
-          const args = ["-c", `bash <(wget -qO- ${APP.scripts.install}) ${message.toString()}`];
-          hardware.execScriptCommand("bash", args, (progress, error) => {
-            if (progress) {
-              console.info(`Progress: ${progress}%`);
-            }
-            updateApp(progress);
-          });
+  const client = publishConfig("update", config).on("message", (topic, message) => {
+    if (topic === config.command_topic) {
+      console.info("Update App...");
+      hardware.setDisplayStatus("ON", () => {
+        const args = ["-c", `bash <(wget -qO- ${APP.scripts.install}) ${message.toString()}`];
+        hardware.execScriptCommand("bash", args, (progress, error) => {
+          if (progress) {
+            console.info(`Progress: ${progress}%`);
+          }
+          updateApp(progress);
         });
-      }
-    })
-    .subscribe(config.command_topic);
+      });
+    }
+  });
+  // Only subscribe when the entity actually exposes an install command; passing
+  // an undefined topic to mqtt.js throws. Upstream omits this guard.
+  if (config.command_topic) {
+    client.subscribe(config.command_topic);
+  }
   updateApp();
 };
 
@@ -291,7 +322,7 @@ const initApp = () => {
  */
 const updateApp = async (progress = 0) => {
   const latest = APP.releases.latest;
-  if (!HARDWARE.support.appUpdate || ARGS.app_disable.includes("mqtt_app") || !latest || !latest.summary) {
+  if (ARGS.app_disable.includes("mqtt_app") || !latest?.summary) {
     return;
   }
   const summary = latest.summary.length > 250 ? latest.summary.slice(0, 250) + "..." : latest.summary;
@@ -301,8 +332,8 @@ const updateApp = async (progress = 0) => {
     installed_version: APP.version,
     release_summary: summary,
     release_url: latest.url,
-    update_percentage: progress || null,
-    in_progress: progress && progress > 0 && progress < 100,
+    update_percentage: progress ?? null,
+    in_progress: typeof progress === "number" && progress > 0 && progress < 100,
   };
   publishState("app/version", JSON.stringify(version));
 };
@@ -319,7 +350,7 @@ const initShutdown = () => {
     icon: "mdi:power",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.sudoRights || ARGS.app_disable.includes("mqtt_shutdown")) {
+  if (!HARDWARE.support.access?.shutdown || ARGS.app_disable.includes("mqtt_shutdown")) {
     removeConfig("button", config);
     return;
   }
@@ -347,7 +378,7 @@ const initReboot = () => {
     icon: "mdi:restart",
     device: INTEGRATION.device,
   };
-  if (!HARDWARE.support.sudoRights || ARGS.app_disable.includes("mqtt_reboot")) {
+  if (!HARDWARE.support.access?.reboot || ARGS.app_disable.includes("mqtt_reboot")) {
     removeConfig("button", config);
     return;
   }
@@ -483,12 +514,12 @@ const initDisplay = () => {
     unique_id: `${INTEGRATION.node}_display`,
     command_topic: `${root}/power/set`,
     state_topic: `${root}/power/state`,
-    supported_color_modes: ["onoff"],
+    color_mode_state_topic: `${root}/color_mode/state`,
+    supported_color_modes: [HARDWARE.support.displayBrightness ? "brightness" : "onoff"],
     icon: "mdi:monitor-shimmer",
     platform: "light",
     device: INTEGRATION.device,
     ...(HARDWARE.support.displayBrightness && {
-      supported_color_modes: ["brightness"],
       brightness_command_topic: `${root}/brightness/set`,
       brightness_state_topic: `${root}/brightness/state`,
       brightness_scale: 100,
@@ -534,6 +565,7 @@ const updateDisplay = async () => {
   if (ARGS.app_disable.includes("mqtt_display")) return;
   const status = hardware.getDisplayStatus();
   const brightness = hardware.getDisplayBrightness();
+  publishState("display/color_mode", HARDWARE.support.displayBrightness ? "brightness" : "onoff");
   publishState("display/brightness", brightness);
   publishState("display/power", status);
 };
@@ -1267,7 +1299,7 @@ const initScreenshot = () => {
 const updateScreenshot = async () => {
   if (ARGS.app_disable.includes("mqtt_screenshot")) return;
   const screenshot = WEBVIEW.tracker.screenshot;
-  publishState("screenshot", screenshot);
+  publishState("screenshot", screenshot, false);
 };
 
 /**
@@ -1299,8 +1331,8 @@ const updateHeartbeat = async () => {
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
   const heartbeat = local.toISOString().replace(/\.\d{3}Z$/, "");
   const attributes = { date: now };
-  publishState("heartbeat", heartbeat);
-  publishAttributes("heartbeat", attributes);
+  publishState("heartbeat", heartbeat, false);
+  publishAttributes("heartbeat", attributes, false);
 };
 
 /**

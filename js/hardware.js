@@ -100,6 +100,7 @@ const init = async () => {
   // Show hardware infos
   process.stdout.write("\n");
   const unsupported = "unsupported";
+  const sudo = (cmd) => (["ddcutil", "tee"].includes(cmd) && HARDWARE.support.access?.sudo ? `sudo ${cmd}` : cmd);
   const batteryLevel = `${getBatteryLevel()} (sysfs)`;
   const batteryLevelInfo = HARDWARE.support.batteryLevel ? batteryLevel : unsupported;
   console.info(
@@ -112,13 +113,13 @@ const init = async () => {
     `Illuminance Level [${HARDWARE.support.illuminanceLevel ? HARDWARE.illuminance.level.path : unsupported}]:`,
     illuminanceLevelInfo,
   );
-  const displayStatus = `${getDisplayStatus()} (${HARDWARE.display.status.command})`;
+  const displayStatus = `${getDisplayStatus()} (${sudo(HARDWARE.display.status.command)})`;
   const displayStatusInfo = HARDWARE.support.displayStatus ? displayStatus : unsupported;
   console.info(
     `Display Status [${HARDWARE.support.displayStatus ? HARDWARE.display.status.path : unsupported}]:`,
     displayStatusInfo,
   );
-  const displayBrightness = `${getDisplayBrightness()} (${HARDWARE.display.brightness.command})`;
+  const displayBrightness = `${getDisplayBrightness()} (${sudo(HARDWARE.display.brightness.command)})`;
   const displayBrightnessInfo = HARDWARE.support.displayBrightness ? displayBrightness : unsupported;
   console.info(
     `Display Brightness [${HARDWARE.support.displayBrightness ? HARDWARE.display.brightness.path : unsupported}]:`,
@@ -310,11 +311,6 @@ const sessionDesktop = () => {
  * @returns {Object} Returns support object with boolean values.
  */
 const checkSupport = () => {
-  const sudo = sudoRights();
-  const service = serviceRuns(APP.name);
-  const keyboard = processRuns("squeekboard");
-  const release = APP.build.maker === "deb";
-
   const audioOutput = !!HARDWARE.audio.device.output;
   const audioInput = !!HARDWARE.audio.device.input;
   const batteryPath = !!HARDWARE.battery.level.path;
@@ -323,17 +319,24 @@ const checkSupport = () => {
   const statusCommand = !!HARDWARE.display.status.command;
   const brightnessPath = !!HARDWARE.display.brightness.path && !!HARDWARE.display.brightness.value.max;
   const brightnessCommand = !!HARDWARE.display.brightness.command && !!HARDWARE.display.brightness.value.max;
+  const keyboardProcess = processRuns("squeekboard");
 
   return {
     batteryLevel: batteryPath,
     illuminanceLevel: illuminancePath,
     displayStatus: statusPath && statusCommand,
     displayBrightness: statusPath && statusCommand && brightnessPath && brightnessCommand,
-    keyboardVisibility: keyboard,
+    keyboardVisibility: keyboardProcess,
     audioVolume: audioOutput,
     microphoneVolume: audioInput,
-    appUpdate: sudo && service && release,
-    sudoRights: sudo,
+    access: {
+      sudo: sudoRights(),
+      reboot: rebootRights(),
+      shutdown: shutdownRights(),
+      install: installRights(),
+      service: serviceRuns(APP.name),
+      deb: APP.build.maker === "deb",
+    },
   };
 };
 
@@ -699,7 +702,7 @@ const getDisplayStatus = () => {
   switch (HARDWARE.display.status.command) {
     case "ddcutil":
       const ddcutil = execSyncCommand("sudo", ["ddcutil", "getvcp", "0xD6", "--brief"]);
-      const match = ddcutil !== null ? ddcutil.match(/VCP D6 \S+ x0?([14])/) : null;
+      const match = ddcutil !== null ? ddcutil.match(/VCP D6 \S+ x0?([1-5])/) : null;
       if (match) {
         const output = match[1] === "1";
         return output ? "ON" : "OFF";
@@ -823,10 +826,13 @@ const getDisplayBrightnessCommand = () => {
           }
           break;
         case "tee":
-          if (!sudoRights()) {
+          if (!HARDWARE.display.brightness.path) {
             break;
           }
-          if (HARDWARE.display.brightness.path) {
+          // udev rules can hand the session user write access to the backlight
+          // sysfs node, in which case no sudo is needed at all (touchkio#233).
+          const file = path.join(HARDWARE.display.brightness.path, "brightness");
+          if (sudoRights() || writeRights(file)) {
             return map.command;
           }
           break;
@@ -869,18 +875,18 @@ const getDisplayBrightness = () => {
   if (!HARDWARE.support.displayBrightness) {
     return null;
   }
+  const max = HARDWARE.display.brightness.value.max || 1;
   switch (HARDWARE.display.brightness.command) {
     case "ddcutil":
       const ddcutil = execSyncCommand("sudo", ["ddcutil", "getvcp", "0x10", "--brief"]);
       const match = ddcutil !== null ? ddcutil.match(/VCP 10 C (\d+) (\d+)/) : null;
       if (match) {
-        return parseInt(match[1], 10);
+        return Math.max(0, Math.min(Math.round((parseInt(match[1], 10) / max) * 100), 100));
       }
       return null;
     case "tee":
       const brightness = readFile(path.join(HARDWARE.display.brightness.path, "brightness"));
       if (brightness) {
-        const max = HARDWARE.display.brightness.value.max || 1;
         return Math.max(0, Math.min(Math.round((parseInt(brightness, 10) / max) * 100), 100));
       }
   }
@@ -908,19 +914,20 @@ const setDisplayBrightness = (brightness, callback = null) => {
     if (typeof callback === "function") callback(null, "Invalid brightness");
     return;
   }
+  const max = HARDWARE.display.brightness.value.max || 1;
+  const value = Math.max(0, Math.min(Math.round((brightness / 100) * max), max));
   switch (HARDWARE.display.brightness.command) {
     case "ddcutil":
-      execAsyncCommand("sudo", ["ddcutil", "setvcp", "0x10", `${brightness}`], (reply, error) => {
-        fs.writeFileSync(path.join(HARDWARE.display.brightness.path, "brightness"), `${brightness}`);
+      execAsyncCommand("sudo", ["ddcutil", "setvcp", "0x10", `${value}`], (reply, error) => {
+        fs.writeFileSync(path.join(HARDWARE.display.brightness.path, "brightness"), `${value}`);
         if (typeof callback === "function") callback(reply, error);
       });
       return;
     case "tee":
-      const max = HARDWARE.display.brightness.value.max || 1;
       const file = path.join(HARDWARE.display.brightness.path, "brightness");
-      const value = Math.max(0, Math.min(Math.round((brightness / 100) * max), max));
-      const proc = execAsyncCommand("sudo", ["tee", file], callback);
-      proc.stdin.write(value.toString());
+      const [cmd, args] = HARDWARE.support.access?.sudo ? ["sudo", ["tee", file]] : ["tee", [file]];
+      const proc = execAsyncCommand(cmd, args, callback);
+      proc.stdin.write(`${value}`);
       proc.stdin.end();
       return;
   }
@@ -1170,7 +1177,7 @@ const checkPackageUpgrades = () => {
  * @param {Function} callback - A callback function that receives the output or error.
  */
 const shutdownSystem = (callback = null) => {
-  if (!HARDWARE.support.sudoRights) {
+  if (!HARDWARE.support.access?.shutdown) {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
@@ -1186,7 +1193,7 @@ const shutdownSystem = (callback = null) => {
  * @param {Function} callback - A callback function that receives the output or error.
  */
 const rebootSystem = (callback = null) => {
-  if (!HARDWARE.support.sudoRights) {
+  if (!HARDWARE.support.access?.reboot) {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
@@ -1208,6 +1215,59 @@ const sudoRights = () => {
     _cache.sudoRights = false;
   }
   return _cache.sudoRights;
+};
+
+/**
+ * Checks if `apt install` can run via sudo without a password.
+ *
+ * @returns {boolean} True if password-less apt install rights exist.
+ */
+const installRights = () => {
+  try {
+    cpr.execSync(`sudo -n apt install --help`, { encoding: "utf8", stdio: "ignore" });
+    return true;
+  } catch {}
+  return false;
+};
+
+/**
+ * Checks if `reboot` can run via sudo without a password.
+ *
+ * @returns {boolean} True if password-less reboot rights exist.
+ */
+const rebootRights = () => {
+  try {
+    cpr.execSync(`sudo -n reboot --help`, { encoding: "utf8", stdio: "ignore" });
+    return true;
+  } catch {}
+  return false;
+};
+
+/**
+ * Checks if `shutdown` can run via sudo without a password.
+ *
+ * @returns {boolean} True if password-less shutdown rights exist.
+ */
+const shutdownRights = () => {
+  try {
+    cpr.execSync(`sudo -n shutdown --help`, { encoding: "utf8", stdio: "ignore" });
+    return true;
+  } catch {}
+  return false;
+};
+
+/**
+ * Checks if a file path has write access rights.
+ *
+ * @param {string} path - The file path to check.
+ * @returns {boolean} True if write access rights exist.
+ */
+const writeRights = (path) => {
+  try {
+    fs.accessSync(path, fs.constants.R_OK | fs.constants.W_OK);
+    return true;
+  } catch {}
+  return false;
 };
 
 /**

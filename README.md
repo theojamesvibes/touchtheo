@@ -57,7 +57,7 @@ On the first run of the application, you will encounter a **setup procedure (CLI
 It's recommended to create a dedicated Home Assistant user (local access only) for your kiosk device.
 
 You might also need a physical keyboard or remote VNC access to input these credentials once.
-If your hardware is [supported](https://github.com/theojamesvibes/touchtheo/blob/main/HARDWARE.md) you may be able to activate the on-screen keyboard using the side [widget](https://github.com/theojamesvibes/touchtheo/issues/16).
+If your hardware is [supported](https://github.com/theojamesvibes/touchtheo/blob/main/HARDWARE.md) you may be able to activate the on-screen keyboard using the side [widget](https://github.com/leukipp/touchkio/issues/16).
 After the first login the Home Assistant credentials are stored inside the `~/.config/touchtheo/` folder.
 
 #### Option 1 - The easy way
@@ -219,6 +219,8 @@ Among the auto-discovered entities are a few worth calling out:
 - **Widget** (switch) — shows or hides the floating side-panel widget at runtime, so you can flip it on to troubleshoot a dashboard and back off without editing `--web-widget` and restarting ([touchkio#168](https://github.com/leukipp/touchkio/issues/168)).
 - **Display** (light) — brightness now accepts **0** to switch PWM/sysfs backlights and `ddcutil` displays fully off, not just down to the minimum ([touchkio#190](https://github.com/leukipp/touchkio/issues/190)).
 - **Package Upgrades** (sensor) — on headless Raspberry Pi OS nothing refreshes the apt index automatically, so this used to stay at `0`. TouchTheo now runs a background `apt-get update` (at most twice a day, only when it has sudo rights) so the count reflects reality ([touchkio#213](https://github.com/leukipp/touchkio/issues/213)).
+- **App** (update) — the update entity is now always published, so Home Assistant tells you a newer TouchTheo release exists even on a device that cannot install it itself. The **Install** button only appears when the device was installed from the `.deb`, runs `touchtheo.service` and has password-less `sudo apt` rights ([touchkio#70](https://github.com/leukipp/touchkio/issues/70)).
+- **Screenshot** / **Heartbeat** — these are published **non-retained**. A retained screenshot or heartbeat survives a broker restart and makes Home Assistant show a stale image, or a "last seen" timestamp that predates the device actually being up.
 
 Any of these can be turned off by adding its key (e.g. `mqtt_widget`, `mqtt_package_upgrades`) to the `app_disable` list in `Arguments.json`.
 
@@ -295,6 +297,11 @@ The kiosk application interacts with squeekboard via the `D-Bus` object path `/s
 The Raspberry Pi's **build-in screen blanking** function uses the command `swayidle -w timeout 600 'wlopm --off \*' resume 'wlopm --on \*' &` inside `~/.config/labwc/autostart` to blank the screen after **10 minutes**.
 The `wlopm --off \*` command changes the `/sys/class/backlight/*/bl_power` value to **4**, when setting the value to **0** the screen will turn on again.
 However, `swayidle` still seems to consider the screen to be off and as a result it will not turn off again unless there is some interaction in the meantime.
+
+When using Raspberry Pi OS with labwc/Wayland **and `wayvnc`**, display power control through `wlopm` fails while a VNC client is actively connected.
+In that state `wlopm --off DSI-2` / `wlopm --on DSI-2` return `ERROR: Setting power mode for output 'DSI-2' failed.` — the active VNC screen-capture session holds the output.
+Disconnecting the VNC client restores `wlopm` without rebooting or restarting TouchTheo.
+If display power is automated from Home Assistant, avoid relying on display on/off while a VNC session is live, or verify that the requested state was actually applied ([touchkio#210](https://github.com/leukipp/touchkio/issues/210)).
 
 When using the MQTT integration, the kiosk application must be able to **detect changes** made on the **device** itself.
 I managed to achieve this for the `/sys/class/backlight/*/brightness` file by implementing a simple `fs.watch(..)` file listener.

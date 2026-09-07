@@ -112,18 +112,18 @@ test("getNetworkAddresses: groups external addresses by interface + family, skip
 // We stub the cpr.spawn boundary so nothing actually runs, and assert on what was
 // passed through. (ddcutil path keeps it side-effect free: its fs.writeFileSync only
 // runs from the proc "close" callback, which our stub never emits.)
-const withBrightnessHardware = (t, command) => {
+const withBrightnessHardware = (t, command, max = 100, sudo = true) => {
   const prev = global.HARDWARE;
   t.after(() => {
     global.HARDWARE = prev;
   });
   global.HARDWARE = {
-    support: { displayBrightness: true },
-    display: { brightness: { command, path: "/sys/class/backlight/x", value: { max: 100 } } },
+    support: { displayBrightness: true, access: { sudo } },
+    display: { brightness: { command, path: "/sys/class/backlight/x", value: { max } } },
   };
   const spawned = [];
   t.mock.method(cpr, "spawn", (cmd, args) => {
-    spawned.push(args);
+    spawned.push([cmd, ...args]);
     return { stdout: { on() {} }, stderr: { on() {} }, on() {}, stdin: { write() {}, end() {} } };
   });
   return spawned;
@@ -137,7 +137,7 @@ test("setDisplayBrightness: accepts 0 to switch the display fully off (touchkio#
   });
   assert.equal(rejected, false, "0 must not be rejected as invalid");
   assert.ok(
-    spawned.some((args) => args.join(" ") === "ddcutil setvcp 0x10 0"),
+    spawned.some((args) => args.join(" ") === "sudo ddcutil setvcp 0x10 0"),
     "ddcutil should be told to set brightness 0",
   );
 });
@@ -148,7 +148,7 @@ test("setDisplayBrightness: tee path writes 0 (not clamped to 1) for brightness 
     global.HARDWARE = prev;
   });
   global.HARDWARE = {
-    support: { displayBrightness: true },
+    support: { displayBrightness: true, access: { sudo: true } },
     display: { brightness: { command: "tee", path: "/sys/class/backlight/x", value: { max: 255 } } },
   };
   let written = null;
@@ -176,4 +176,96 @@ test("setDisplayBrightness: still rejects out-of-range values (-1 and 101)", (t)
     });
     assert.equal(error, "Invalid brightness", `${bad} should be rejected`);
   }
+});
+
+// --- TouchKio 1.5.1/1.5.2 catchup -----------------------------------------
+// The upstream fixes ported in 1.6.3. These pin the behaviour so a later
+// catchup cannot quietly re-clamp brightness to 1 (touchkio#190 divergence)
+// or drop the standby/no-sudo handling again.
+
+/**
+ * Stubs cpr.execSync so execSyncCommand() returns a canned string.
+ * @param {object} t - the node:test context.
+ * @param {string} output - what the command should print.
+ */
+const withSyncOutput = (t, output) => {
+  const calls = [];
+  t.mock.method(cpr, "execSync", (cmd) => {
+    calls.push(cmd);
+    return output;
+  });
+  return calls;
+};
+
+test("getDisplayStatus: ddcutil standby power states report OFF (touchkio#232)", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  // x02..x05 are the DPMS standby/suspend/off states; before the fix the regex
+  // only matched x01/x04, so a display in standby returned null and the MQTT
+  // light entity went unavailable instead of showing OFF.
+  for (const [vcp, expected] of [
+    ["x01", "ON"],
+    ["x02", "OFF"],
+    ["x04", "OFF"],
+    ["x05", "OFF"],
+  ]) {
+    global.HARDWARE = {
+      support: { displayStatus: true },
+      display: { status: { command: "ddcutil" } },
+    };
+    withSyncOutput(t, `VCP D6 SNC ${vcp}\n`);
+    assert.equal(hardware.getDisplayStatus(), expected, `${vcp} should read as ${expected}`);
+    t.mock.restoreAll();
+  }
+});
+
+test("getDisplayBrightness: ddcutil value is scaled against the display max (touchkio 1.5.1)", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  // A display reporting 0..255 used to be published to Home Assistant verbatim,
+  // so "50%" showed up as 127%. It must be normalised to a percentage.
+  global.HARDWARE = {
+    support: { displayBrightness: true },
+    display: { brightness: { command: "ddcutil", path: "/x", value: { max: 255 } } },
+  };
+  withSyncOutput(t, "VCP 10 C 128 255\n");
+  assert.equal(hardware.getDisplayBrightness(), 50);
+});
+
+test("getDisplayBrightness: ddcutil 0 stays 0, not clamped to 1 (touchkio#190)", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  global.HARDWARE = {
+    support: { displayBrightness: true },
+    display: { brightness: { command: "ddcutil", path: "/x", value: { max: 255 } } },
+  };
+  withSyncOutput(t, "VCP 10 C 0 255\n");
+  assert.equal(hardware.getDisplayBrightness(), 0);
+});
+
+test("setDisplayBrightness: ddcutil percent is mapped onto the display scale (touchkio 1.5.1)", (t) => {
+  const spawned = withBrightnessHardware(t, "ddcutil", 255);
+  hardware.setDisplayBrightness(50);
+  assert.ok(
+    spawned.some((args) => args.join(" ") === "sudo ddcutil setvcp 0x10 128"),
+    `50% of a 0-255 display is 128, got ${JSON.stringify(spawned)}`,
+  );
+});
+
+test("setDisplayBrightness: tee runs without sudo when the backlight is writable (touchkio#233)", (t) => {
+  const spawned = withBrightnessHardware(t, "tee", 100, false);
+  hardware.setDisplayBrightness(40);
+  assert.deepEqual(spawned, [["tee", "/sys/class/backlight/x/brightness"]]);
+});
+
+test("setDisplayBrightness: tee still uses sudo when only sudo grants write access", (t) => {
+  const spawned = withBrightnessHardware(t, "tee", 100, true);
+  hardware.setDisplayBrightness(40);
+  assert.deepEqual(spawned, [["sudo", "tee", "/sys/class/backlight/x/brightness"]]);
 });
