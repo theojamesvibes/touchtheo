@@ -77,6 +77,15 @@ sudoers policy that only whitelists `reboot` no longer has to grant everything e
 The result is published as the `access` attribute of the **Model** sensor (`sudo`, `reboot`, `shutdown`, `install`,
 `service`, `deb`), which replaces the former `sudoRights`/`appUpdate` attributes.
 
+To grant only what each feature needs, rather than blanket `NOPASSWD: ALL`, create a drop-in with `sudo visudo -f
+/etc/sudoers.d/touchtheo` (replace `pi` with your session user):
+```
+pi ALL=(ALL) NOPASSWD: /sbin/reboot, /sbin/shutdown, /usr/bin/apt, /usr/bin/ddcutil, /usr/bin/tee
+```
+Each line is optional — drop `ddcutil`/`tee` if the backlight is already writable, drop `apt` if you do not want the
+device to install its own updates (the App entity still reports that a newer release exists, it just loses the
+**Install** button). Verify with `sudo -n reboot --help`, which is exactly the probe TouchTheo runs at startup.
+
 ## FAQ
 
 ### Operating System
