@@ -4,7 +4,9 @@ name: tests
 # and PR so regressions — including a TouchKio catchup accidentally clobbering a
 # Raspberry Pi 5 divergence — are caught before a release tag is cut.
 #
-# The suite depends on Node built-ins only, so there is no install step.
+# The suite depends on Node built-ins only, so there is no install step. The
+# syntax and format gates run alongside it: a file that does not parse must never
+# reach a Pi, and unformatted files make the next upstream catchup diff unreadable.
 
 on:
   push:
@@ -21,12 +23,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22.x'
+
+      - name: Syntax check all sources
+        run: for f in index.js js/*.js tests/*.js; do node --check "$f"; done
+
+      - name: Check formatting
+        run: npx --yes prettier@3.9.6 --check "js/**/*.js" index.js "tests/*.js" "html/*.html"
 
       - name: Run unit tests
         run: node --test tests/*.test.js

@@ -76,36 +76,45 @@ console.debug = () => {};
  * allowing to safely create browser windows and perform other
  * initialization tasks.
  */
-app.whenReady().then(async () => {
-  if (!(await initApp()) || !(await initArgs()) || !(await initLog())) {
-    return;
-  }
-
-  // Log version on every startup — write directly to stdout so journald always captures it
-  process.stdout.write(`${APP.title} v${APP.version} starting\n`);
-
-  // Show used arguments
-  const args = Object.assign({}, ARGS);
-  if ("mqtt_password" in args) {
-    args.mqtt_password = "*".repeat((args.mqtt_password || "").length);
-  }
-  console.info(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  process.stdout.write("\n");
-
-  // Chained init functions
-  const chained = [
-    ["webview.js", webview.init],
-    ["hardware.js", hardware.init],
-    ["integration.js", integration.init],
-  ];
-  for (const [name, init] of chained) {
-    console.debug(`${name}: init()`);
-    if (!(await init())) {
-      console.debug(`${name}: init() --> aborted`);
-      break;
+app
+  .whenReady()
+  .then(async () => {
+    if (!(await initApp()) || !(await initArgs()) || !(await initLog())) {
+      return;
     }
-  }
-});
+
+    // Log version on every startup — write directly to stdout so journald always captures it
+    process.stdout.write(`${APP.title} v${APP.version} starting\n`);
+
+    // Show used arguments
+    const args = Object.assign({}, ARGS);
+    if ("mqtt_password" in args) {
+      args.mqtt_password = "*".repeat((args.mqtt_password || "").length);
+    }
+    console.info(`Arguments: ${JSON.stringify(args, null, 2)}`);
+    process.stdout.write("\n");
+
+    // Chained init functions
+    const chained = [
+      ["webview.js", webview.init],
+      ["hardware.js", hardware.init],
+      ["integration.js", integration.init],
+    ];
+    for (const [name, init] of chained) {
+      console.debug(`${name}: init()`);
+      if (!(await init())) {
+        console.debug(`${name}: init() --> aborted`);
+        break;
+      }
+    }
+  })
+  .catch((error) => {
+    // Startup is the one place where carrying on is not an option: if init throws,
+    // nothing is wired up. Exit non-zero so systemd retries with a logged reason.
+    console.error(`Startup Failed: ${error?.stack || error}`);
+    process.exitCode = 1;
+    app.exit(1);
+  });
 
 /**
  * Initializes the global app object.
@@ -163,6 +172,30 @@ const initApp = async () => {
     const level = process.exitCode === 0 ? "warn" : "error";
     console[level](`${APP.title} Terminated (${process.exitCode})`);
     app.exit(process.exitCode);
+  });
+
+  // Register process failure events.
+  //
+  // Since Node 15 an unhandled promise rejection terminates the process. On a
+  // wall-mounted kiosk that turns a transient failure — a rejected MQTT publish,
+  // a capturePage during a display transition — into a blank screen until
+  // systemd restarts the unit ten seconds later. Log it instead and keep going;
+  // the Errors sensor picks it up via the console hook, so it stays visible in
+  // Home Assistant rather than being silently swallowed.
+  process.on("unhandledRejection", (reason) => {
+    const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
+    console.error(`Unhandled Rejection: ${message}`);
+  });
+
+  // An uncaught exception, by contrast, leaves the process in an unknown state,
+  // so we do exit — but with a logged reason and a non-zero code, which is what
+  // `Restart=on-failure` needs to see. Without this handler the default printout
+  // races the exit and often never reaches journald.
+  process.on("uncaughtException", (error) => {
+    console.error(`Uncaught Exception: ${error.stack || error.message}`);
+    process.exitCode = 1;
+    APP.exiting = true;
+    app.exit(1);
   });
 
   // Register process exit events
