@@ -12,9 +12,19 @@ const Events = require("events");
 // Known argument keys accepted by this app. Defined here (before app.whenReady)
 // so the Chromium flag forwarding block below can reference it.
 const KNOWN_ARGS = new Set([
-  "web_url", "web_theme", "web_zoom", "web_widget",
-  "mqtt_url", "mqtt_user", "mqtt_password", "mqtt_discovery",
-  "setup", "help", "version", "app_reset", "app_disable",
+  "web_url",
+  "web_theme",
+  "web_zoom",
+  "web_widget",
+  "mqtt_url",
+  "mqtt_user",
+  "mqtt_password",
+  "mqtt_discovery",
+  "setup",
+  "help",
+  "version",
+  "app_reset",
+  "app_disable",
 ]);
 
 // Required on Raspberry Pi OS — the kernel namespace restrictions cause
@@ -230,7 +240,10 @@ const initArgs = async () => {
   if (!("app_disable" in args)) {
     args.app_disable = ["mqtt_screenshot", "mqtt_errors", "mqtt_app", "mqtt_microphone", "mqtt_illuminance_level"];
   } else if (!Array.isArray(args.app_disable)) {
-    args.app_disable = (args.app_disable || "").split(",").map((d) => d.trim()).filter(Boolean);
+    args.app_disable = (args.app_disable || "")
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
   }
 
   // Calculate arguments hash
@@ -240,7 +253,10 @@ const initArgs = async () => {
   // Normalise app_reset to an array (matches upstream TouchKio 1.4.3 API)
   args.app_reset = args.app_reset || [];
   if (!Array.isArray(args.app_reset)) {
-    args.app_reset = args.app_reset.split(",").map((r) => r.trim()).filter(Boolean);
+    args.app_reset = args.app_reset
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean);
   }
   if (argsUpdated && !args.app_reset.includes("arguments")) {
     args.app_reset.push("arguments");

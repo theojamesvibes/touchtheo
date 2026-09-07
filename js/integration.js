@@ -890,7 +890,10 @@ const initModel = () => {
     icon: "mdi:raspberry-pi",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_model")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_model")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateModel();
 };
@@ -918,7 +921,10 @@ const initSerialNumber = () => {
     icon: "mdi:hexadecimal",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_serial_number")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_serial_number")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateSerialNumber();
 };
@@ -946,7 +952,10 @@ const initNetworkAddress = () => {
     icon: "mdi:ip-network",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_network_address")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_network_address")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateNetworkAddress();
 };
@@ -977,7 +986,10 @@ const initHostName = () => {
     icon: "mdi:console-network",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_host_name")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_host_name")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateHostName();
 };
@@ -1006,7 +1018,10 @@ const initUpTime = () => {
     icon: "mdi:timeline-clock",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_up_time")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_up_time")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateUpTime();
 };
@@ -1039,7 +1054,10 @@ const initMemorySize = () => {
     icon: "mdi:memory",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_memory_size")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_memory_size")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateMemorySize();
 };
@@ -1067,7 +1085,10 @@ const initMemoryUsage = () => {
     icon: "mdi:memory-arrow-down",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_memory_usage")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_memory_usage")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateMemoryUsage();
 };
@@ -1095,7 +1116,10 @@ const initProcessorUsage = () => {
     icon: "mdi:cpu-64-bit",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_processor_usage")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_processor_usage")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateProcessorUsage();
 };
@@ -1123,7 +1147,10 @@ const initProcessorTemperature = () => {
     icon: "mdi:radiator",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_processor_temperature")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_processor_temperature")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateProcessorTemperature();
 };
@@ -1216,7 +1243,10 @@ const initPackageUpgrades = () => {
     icon: "mdi:package-down",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_package_upgrades")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_package_upgrades")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updatePackageUpgrades();
 };
@@ -1252,7 +1282,10 @@ const initLastActive = () => {
     icon: "mdi:gesture-tap-hold",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_last_active")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_last_active")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateLastActive();
 };
@@ -1288,7 +1321,10 @@ const initScreenshot = () => {
     icon: "mdi:image-area",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_screenshot")) { removeConfig("image", config); return; }
+  if (ARGS.app_disable.includes("mqtt_screenshot")) {
+    removeConfig("image", config);
+    return;
+  }
   publishConfig("image", config);
   updateScreenshot();
 };
@@ -1317,7 +1353,10 @@ const initHeartbeat = () => {
     icon: "mdi:heart-flash",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_heartbeat")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_heartbeat")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateHeartbeat();
 };
@@ -1350,7 +1389,10 @@ const initErrors = () => {
     icon: "mdi:alert-circle",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_errors")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_errors")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateErrors();
 };
@@ -1389,7 +1431,10 @@ const initVersion = () => {
     icon: "mdi:application-braces",
     device: INTEGRATION.device,
   };
-  if (ARGS.app_disable.includes("mqtt_version")) { removeConfig("sensor", config); return; }
+  if (ARGS.app_disable.includes("mqtt_version")) {
+    removeConfig("sensor", config);
+    return;
+  }
   publishConfig("sensor", config);
   updateVersion();
 };
