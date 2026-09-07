@@ -79,7 +79,23 @@ Ships alongside an operational hardening pass on CI and process failure handling
 - **`index.js` and `js/integration.js` reformatted with prettier.** Both had drifted
   from the repo's own config, which inflated every upstream catch-up diff.
 
+### Security
+- **Shell injection through the App install command.** The MQTT payload published
+  to `<node>/app/install` was interpolated straight into a `bash -c` string, so
+  anything able to publish to the broker could append arbitrary shell and have it
+  run through the install script's `sudo`. The handler now accepts only the two
+  payloads the entity actually advertises (`update`, `update early`) and logs
+  anything else. `mqtt_app` remains off by default, and the command topic is only
+  published when install rights exist, but neither of those is a boundary.
+
 ### Fixed
+- **A failed `spawn` killed the application.** `execAsyncCommand` and
+  `execScriptCommand` never listened for the child process `error` event. A
+  missing or non-executable binary emits `error` and never `close`, and Node
+  rethrows an unhandled `error` as an uncaught exception — so an MQTT command for
+  a tool that is not installed took the kiosk down instead of reporting a failure.
+  Both now report it through the normal callback. `setDisplayBrightness` also
+  ignores the EPIPE that follows on the unconnected stdin.
 - **Display in standby reported as unavailable (upstream TouchKio #232).** The
   ddcutil DPMS regex only matched power states `x01` and `x04`, so a display in
   standby (`x02`, `x03`, `x05`) returned `null` and took the MQTT light entity

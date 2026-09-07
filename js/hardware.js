@@ -948,6 +948,9 @@ const setDisplayBrightness = (brightness, callback = null) => {
       const file = path.join(HARDWARE.display.brightness.path, "brightness");
       const [cmd, args] = HARDWARE.support.access?.sudo ? ["sudo", ["tee", file]] : ["tee", [file]];
       const proc = execAsyncCommand(cmd, args, callback);
+      // A failed spawn leaves stdin unconnected; writing to it emits EPIPE, which
+      // is fatal without a listener. execAsyncCommand already reports the cause.
+      proc.stdin.on("error", () => {});
       proc.stdin.write(`${value}`);
       proc.stdin.end();
       return;
@@ -1368,6 +1371,14 @@ const execAsyncCommand = (cmd, args, callback = null) => {
   let errorOutput = "";
   let successOutput = "";
   let proc = cpr.spawn(cmd, args);
+  // A spawn failure (missing binary, EACCES) emits "error" and never "close".
+  // With no listener Node rethrows it as an uncaught exception and the kiosk
+  // dies — which an MQTT command for an uninstalled tool could trigger remotely.
+  proc.on("error", (error) => {
+    console.error(`Execute Async: '${[cmd, ...args].join(" ")}' --> ${error.message}`);
+    if (typeof callback === "function") callback(null, error.message);
+    callback = null;
+  });
   proc.stderr.on("data", (data) => {
     if (data) {
       errorOutput += data.toString();
@@ -1403,6 +1414,13 @@ const execScriptCommand = (cmd, args, callback = null) => {
   console.debug(`hardware.js: execScriptCommand(${[cmd, ...args].join(" ")})`);
   let progress = 1;
   let proc = cpr.spawn(cmd, args);
+  // Same spawn-failure guard as execAsyncCommand: no listener means an uncaught
+  // exception rather than a reported failure.
+  proc.on("error", (error) => {
+    console.error(`Execute Script: '${[cmd, ...args].join(" ")}' --> ${error.message}`);
+    if (typeof callback === "function") callback(null, error.message);
+    callback = null;
+  });
   if (typeof callback === "function") callback(progress, null);
   proc.stdout.on("data", (data) => {
     if (data) {

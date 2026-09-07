@@ -124,7 +124,7 @@ const withBrightnessHardware = (t, command, max = 100, sudo = true) => {
   const spawned = [];
   t.mock.method(cpr, "spawn", (cmd, args) => {
     spawned.push([cmd, ...args]);
-    return { stdout: { on() {} }, stderr: { on() {} }, on() {}, stdin: { write() {}, end() {} } };
+    return { stdout: { on() {} }, stderr: { on() {} }, on() {}, stdin: { on() {}, write() {}, end() {} } };
   });
   return spawned;
 };
@@ -157,6 +157,7 @@ test("setDisplayBrightness: tee path writes 0 (not clamped to 1) for brightness 
     stderr: { on() {} },
     on() {},
     stdin: {
+      on() {},
       write(v) {
         written = v;
       },

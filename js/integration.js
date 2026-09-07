@@ -295,11 +295,20 @@ const initApp = () => {
     removeConfig("update", config);
     return;
   }
+  // The payload is interpolated into a `bash -c` string below, so anything that
+  // can publish to the broker could otherwise append arbitrary shell. Only the
+  // two payloads this entity advertises are ever passed through.
+  const installPayloads = new Set(["update", "update early"]);
   const client = publishConfig("update", config).on("message", (topic, message) => {
     if (topic === config.command_topic) {
+      const payload = message.toString().trim();
+      if (!installPayloads.has(payload)) {
+        console.warn(`Rejected Install Payload: ${JSON.stringify(payload)}`);
+        return;
+      }
       console.info("Update App...");
       hardware.setDisplayStatus("ON", () => {
-        const args = ["-c", `bash <(wget -qO- ${APP.scripts.install}) ${message.toString()}`];
+        const args = ["-c", `bash <(wget -qO- ${APP.scripts.install}) ${payload}`];
         hardware.execScriptCommand("bash", args, (progress, error) => {
           if (progress) {
             console.info(`Progress: ${progress}%`);
