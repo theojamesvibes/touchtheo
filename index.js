@@ -25,19 +25,34 @@ const KNOWN_ARGS = new Set([
   "version",
   "app_reset",
   "app_disable",
+  // Behavioural flags consumed via `"key" in ARGS` (app_debug/app_early/
+  // enable_logging) or read from ARGS (ignore_certificate_errors). Must be
+  // listed here or parseArgs drops them from the CLI and they only work when
+  // hand-edited into Arguments.json.
+  "app_debug",
+  "app_early",
+  "enable_logging",
+  "ignore_certificate_errors",
 ]);
 
 // Required on Raspberry Pi OS — the kernel namespace restrictions cause
 // Chromium's seccomp sandbox to send SIGTRAP and crash. Set here so the
 // flag is applied to Chromium without appearing in process.argv, which
 // would confuse the app's own argument parser.
-app.commandLine.appendSwitch("no-sandbox");
-// With --no-sandbox, Chromium's zygote forks renderer processes that end up
-// in a different PID namespace from the browser process, causing ESRCH on
-// shared memory creation and leaving the screen white. --no-zygote makes
-// Chromium spawn renderers as fresh processes instead of zygote forks,
-// avoiding the namespace mismatch. Standard fix for service/container use.
-app.commandLine.appendSwitch("no-zygote");
+//
+// Gated to Linux (the only deployment target): disabling the sandbox strips
+// Chromium's OS-level renderer isolation from the remote HA dashboard, so we
+// keep it on everywhere else (e.g. `yarn start` on a dev machine, which loads
+// public demo sites) rather than run remote content unsandboxed for no reason.
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("no-sandbox");
+  // With --no-sandbox, Chromium's zygote forks renderer processes that end up
+  // in a different PID namespace from the browser process, causing ESRCH on
+  // shared memory creation and leaving the screen white. --no-zygote makes
+  // Chromium spawn renderers as fresh processes instead of zygote forks,
+  // avoiding the namespace mismatch. Standard fix for service/container use.
+  app.commandLine.appendSwitch("no-zygote");
+}
 
 // Forward any unrecognised CLI flags to Chromium. This allows flags like
 // --disable-gpu and --disable-features=UseDNSHttps,AsyncDns to be passed
@@ -301,6 +316,15 @@ const initArgs = async () => {
   // Set global arguments
   ARGS = args;
 
+  // A TLS bypass has to reach Chromium (the webview) as well as the Node side
+  // (axios/mqtt read it from ARGS). Now that ignore_certificate_errors is a
+  // KNOWN_ARGS key it is no longer auto-forwarded by the unknown-flag block at
+  // the top of the file, so forward it explicitly here — before any window is
+  // created in webview.init(). Applies whether it arrived via CLI or JSON.
+  if ("ignore_certificate_errors" in ARGS) {
+    app.commandLine.appendSwitch("ignore-certificate-errors");
+  }
+
   return true;
 };
 
@@ -338,17 +362,22 @@ const initLog = async () => {
   log.errorHandler.startCatching({
     showDialog: false,
     onError({ error, versions }) {
-      if (!error?.message?.includes("Object has been destroyed")) {
-        const build = { ...APP.build, ...versions };
-        const whoopsie = "💥 Whoopsie!";
-        const section2 = `# Description\n- Hardware information?\n- How to reproduce?\n- Additional logs?\n`;
-        const section3 = `# Error\n\`\`\`bash\n${new Date().toISOString()}: ${error.stack}\n\`\`\`\n`;
-        const section4 = `# Application\n\`\`\`json\n${JSON.stringify(build, null, 2)}\n\`\`\`\n`;
-        const title = encodeURIComponent(`${whoopsie} - ${error}`);
-        const body = encodeURIComponent(`${section2}\n${section3}\n${section4}`);
-        console.error(`${whoopsie} -`, error, build);
-        console.info(`🪲 Report issue --> ${APP.issues}/new?title=${title}&body=${body}`);
+      // Benign teardown race: a destroyed WebContentsView/window can still emit
+      // late. Log it but keep running — quitting here restarts the kiosk for no
+      // reason. Only genuine unhandled errors below tear the app down.
+      if (error?.message?.includes("Object has been destroyed")) {
+        console.debug(`Ignored teardown error: ${error.message}`);
+        return;
       }
+      const build = { ...APP.build, ...versions };
+      const whoopsie = "💥 Whoopsie!";
+      const section2 = `# Description\n- Hardware information?\n- How to reproduce?\n- Additional logs?\n`;
+      const section3 = `# Error\n\`\`\`bash\n${new Date().toISOString()}: ${error.stack}\n\`\`\`\n`;
+      const section4 = `# Application\n\`\`\`json\n${JSON.stringify(build, null, 2)}\n\`\`\`\n`;
+      const title = encodeURIComponent(`${whoopsie} - ${error}`);
+      const body = encodeURIComponent(`${section2}\n${section3}\n${section4}`);
+      console.error(`${whoopsie} -`, error, build);
+      console.info(`🪲 Report issue --> ${APP.issues}/new?title=${title}&body=${body}`);
       app.quit();
     },
   });

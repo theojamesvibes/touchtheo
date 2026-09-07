@@ -204,8 +204,10 @@ else
 const fs   = require('fs');
 const crypto = require('crypto');
 
-const srcPath = process.argv[2];
-const dstPath = process.argv[3];
+// With `node -e SCRIPT -- src dst` there is no script path in argv, so the
+// positional arguments start at argv[1] (argv[0] is the node binary).
+const srcPath = process.argv[1];
+const dstPath = process.argv[2];
 
 let args;
 try {
@@ -283,8 +285,10 @@ NODESCRIPT
         warn "Arguments.json migrated — /etc/machine-id unreadable; MQTT password was removed."
         warn "You will need to re-enter your MQTT password. Run: touchtheo --setup" ;;
       *)
-        warn "Unexpected output from migration script: ${RESULT}"
-        warn "Please verify ${DST_ARGS} before starting TouchTheo." ;;
+        error "Arguments.json migration FAILED — destination not written."
+        error "Script output: ${RESULT}"
+        error "TouchTheo will start unconfigured; re-run migration or use: touchtheo --setup"
+        exit 1 ;;
     esac
   fi
 

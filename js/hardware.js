@@ -776,8 +776,11 @@ const setDisplayStatus = (status, callback = null) => {
   switch (HARDWARE.display.status.command) {
     case "ddcutil":
       execAsyncCommand("sudo", ["ddcutil", "setvcp", "0xD6", status === "ON" ? "1" : "4"], (reply, error) => {
-        fs.writeFileSync(path.join(HARDWARE.display.status.path, "dpms"), status.toLowerCase());
-        fs.writeFileSync(path.join(HARDWARE.display.status.path, "status"), status.toLowerCase());
+        // Only shadow the cached state on success — see setDisplayBrightness.
+        if (!error) {
+          fs.writeFileSync(path.join(HARDWARE.display.status.path, "dpms"), status.toLowerCase());
+          fs.writeFileSync(path.join(HARDWARE.display.status.path, "status"), status.toLowerCase());
+        }
         if (typeof callback === "function") callback(reply, error);
       });
       break;
@@ -930,7 +933,7 @@ const setDisplayBrightness = (brightness, callback = null) => {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
-  if (typeof brightness !== "number" || brightness < 0 || brightness > 100) {
+  if (!Number.isFinite(brightness) || brightness < 0 || brightness > 100) {
     console.error("Brightness must be a number between 0 and 100");
     if (typeof callback === "function") callback(null, "Invalid brightness");
     return;
@@ -940,7 +943,12 @@ const setDisplayBrightness = (brightness, callback = null) => {
   switch (HARDWARE.display.brightness.command) {
     case "ddcutil":
       execAsyncCommand("sudo", ["ddcutil", "setvcp", "0x10", `${value}`], (reply, error) => {
-        fs.writeFileSync(path.join(HARDWARE.display.brightness.path, "brightness"), `${value}`);
+        // Only update the cached shadow value when the DDC/CI write succeeded —
+        // otherwise a failed setvcp (monitor asleep, bus glitch) would make the
+        // next poll report a brightness the display never actually took.
+        if (!error) {
+          fs.writeFileSync(path.join(HARDWARE.display.brightness.path, "brightness"), `${value}`);
+        }
         if (typeof callback === "function") callback(reply, error);
       });
       return;
@@ -1011,7 +1019,7 @@ const setAudioVolume = (volume, callback = null) => {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
-  if (typeof volume !== "number" || volume < 0 || volume > 100) {
+  if (!Number.isFinite(volume) || volume < 0 || volume > 100) {
     console.error("Volume must be a number between 0 and 100");
     if (typeof callback === "function") callback(null, "Invalid volume");
     return;
@@ -1074,7 +1082,7 @@ const setMicrophoneVolume = (volume, callback = null) => {
     if (typeof callback === "function") callback(null, "Not supported");
     return;
   }
-  if (typeof volume !== "number" || volume < 0 || volume > 100) {
+  if (!Number.isFinite(volume) || volume < 0 || volume > 100) {
     console.error("Volume must be a number between 0 and 100");
     if (typeof callback === "function") callback(null, "Invalid volume");
     return;

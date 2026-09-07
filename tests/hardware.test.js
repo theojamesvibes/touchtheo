@@ -325,3 +325,33 @@ test("sessionType: no display server at all still reports what loginctl said", (
   withSession(t, { XDG_SESSION_TYPE: "tty" }, "tty");
   assert.equal(hardware.sessionType(), "tty");
 });
+
+// NaN slips past a `typeof x !== "number"` guard (typeof NaN === "number", and
+// NaN < 0 / NaN > 100 are both false), so a non-numeric MQTT payload run through
+// parseInt() would reach the hardware write. The guards use Number.isFinite().
+test("setDisplayBrightness: rejects NaN (non-numeric MQTT payload)", (t) => {
+  withBrightnessHardware(t, "ddcutil");
+  let error = null;
+  hardware.setDisplayBrightness(parseInt("not-a-number", 10), (_reply, err) => {
+    error = err;
+  });
+  assert.equal(error, "Invalid brightness", "NaN should be rejected");
+});
+
+test("setAudioVolume / setMicrophoneVolume: reject NaN", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  global.HARDWARE = {
+    support: { audioVolume: true, microphoneVolume: true },
+    audio: { device: { output: "sink", input: "source" } },
+  };
+  for (const fn of ["setAudioVolume", "setMicrophoneVolume"]) {
+    let error = null;
+    hardware[fn](parseInt("x", 10), (_reply, err) => {
+      error = err;
+    });
+    assert.equal(error, "Invalid volume", `${fn} should reject NaN`);
+  }
+});

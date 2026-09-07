@@ -773,11 +773,17 @@ const initPageNumber = () => {
   publishConfig("number", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
+        // Bound the index — the HA number entity's min/max is only a frontend
+        // hint; a direct MQTT publish can send anything, and an out-of-range
+        // index makes updateView() dereference WEBVIEW.views[n] === undefined
+        // and crash the app.
         const number = parseInt(message, 10);
-        if (WEBVIEW.viewActive && number) {
+        if (WEBVIEW.viewActive && Number.isInteger(number) && number >= 1 && number < WEBVIEW.views.length) {
           console.verbose("Set Page Number:", number);
           WEBVIEW.viewActive = number;
           EVENTS.emit("updateView");
+        } else {
+          console.error(`Ignored Page Number: out of range "${message.toString()}"`);
         }
       }
     })
@@ -863,10 +869,22 @@ const initPageUrl = () => {
   publishConfig("text", config)
     .on("message", (topic, message) => {
       if (topic === config.command_topic) {
+        // Only allow http(s). The HA text entity's pattern is a frontend hint
+        // only; a direct MQTT publish could otherwise load file:// (local-file
+        // disclosure, exfiltratable via the screenshot sensor) or redirect the
+        // kiosk to any scheme.
         const url = message.toString();
-        if (WEBVIEW.viewActive && url) {
+        let scheme = null;
+        try {
+          scheme = new URL(url).protocol;
+        } catch {
+          scheme = null;
+        }
+        if (WEBVIEW.viewActive && (scheme === "http:" || scheme === "https:")) {
           console.verbose("Set Page Url:", url);
           WEBVIEW.views[WEBVIEW.viewActive].webContents.loadURL(url);
+        } else {
+          console.error(`Ignored Page Url: unsupported scheme "${url}"`);
         }
       }
     })

@@ -8,6 +8,65 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.6.4] — 2026-09-07
+
+Security and stability fixes from a full review of the fork, originally written on
+2026-07-11 against 1.6.2 (branch `fix/review-2026-07`, commit `35a9ce6`) and ported
+onto the 1.6.3 tree. Two items from that branch — the App install payload whitelist
+and the `spawn` failure handlers — already shipped in 1.6.3 and are not repeated
+here. No upstream TouchKio changes are involved.
+
+> Like 1.6.3, **not yet verified on hardware.** The migration script fix in
+> particular should be exercised end to end on a real TouchKio install before the
+> migration path is recommended to anyone.
+
+### Security
+- **`page_url` accepted any URL scheme.** The Home Assistant text entity carries a
+  `https?://.*` pattern, but that is a frontend hint — a direct MQTT publish could
+  send `file:///etc/…` and have the kiosk load it, then exfiltrate the rendered
+  result through the Screenshot sensor. The handler now parses the URL and accepts
+  only `http:` and `https:`.
+- **`--no-sandbox` / `--no-zygote` are gated to Linux.** They are needed on
+  Raspberry Pi OS, where kernel namespace restrictions make Chromium's seccomp
+  sandbox send SIGTRAP, but they were being applied unconditionally — stripping
+  Chromium's renderer isolation from remote page content on any other platform,
+  including a dev machine running `yarn start` against public demo sites.
+
+### Fixed
+- **`page_number` crashed the kiosk on an out-of-range value.** The entity's
+  `min`/`max` are frontend hints only; any other value made `updateView()`
+  dereference `WEBVIEW.views[n] === undefined`. The index is now bounded to
+  `1..views.length - 1` and anything else is logged and ignored.
+- **`NaN` passed every numeric guard.** `typeof NaN === "number"`, and both
+  `NaN < 0` and `NaN > 100` are false, so a non-numeric MQTT payload run through
+  `parseInt()` reached the hardware write. Brightness, volume and microphone
+  volume now use `Number.isFinite`.
+- **A failed `ddcutil` write still updated the cached value.** `setDisplayStatus`
+  and `setDisplayBrightness` wrote their shadow files unconditionally, so a
+  failed `setvcp` (monitor asleep, bus glitch) made the next poll report a state
+  the display never took. The shadow is only written when the command succeeded.
+- **Benign teardown races restarted the kiosk.** The electron-log error handler
+  filtered "Object has been destroyed" out of the *reporting* but still called
+  `app.quit()` afterwards, so a late event from a destroyed view took the whole
+  application down. The filter now returns before the quit.
+- **`updateView()` threw on an empty URL.** `getURL()` returns `""` for a
+  webContents that has not committed yet or whose renderer just crashed, and
+  `new URL("")` throws — which the global handler turned into an app quit.
+- **Four documented CLI flags were silently dropped.** `app_debug`, `app_early`,
+  `enable_logging` and `ignore_certificate_errors` were not in `KNOWN_ARGS`, so
+  `parseArgs` discarded them and they only worked when hand-edited into
+  `Arguments.json`. `ignore_certificate_errors` is now also forwarded to Chromium
+  explicitly, since adding it to `KNOWN_ARGS` removes it from the unknown-flag
+  forwarder that previously carried it there by accident.
+- **`migrate_from_touchkio.sh` reported success while migrating nothing.** With
+  `node -e SCRIPT -- src dst` there is no script path in `argv`, so the positional
+  arguments start at `argv[1]` — the script read `argv[2]`/`argv[3]` and got
+  `undefined` for both. Every migrated setting and the re-encrypted MQTT password
+  were silently dropped while the script printed "Migration complete!". The
+  unexpected-output case now errors and exits non-zero instead of warning.
+
+---
+
 ## [1.6.3] — 2026-09-07
 
 Catch-up against upstream **TouchKio v1.5.1** (2026-08-30) and **v1.5.2**

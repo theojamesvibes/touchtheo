@@ -305,7 +305,17 @@ const updateView = () => {
   const url = view.webContents.getURL();
 
   // Build window title
-  const host = url.startsWith("data:") ? "whoopsie" : new URL(url).host;
+  // getURL() returns "" for a webContents that has not committed yet or whose
+  // renderer just crashed; new URL("") throws, which the global error handler
+  // would turn into an app quit — so guard it.
+  let host = "whoopsie";
+  if (url && !url.startsWith("data:")) {
+    try {
+      host = new URL(url).host;
+    } catch {
+      host = "whoopsie";
+    }
+  }
   const name = host.includes("github") ? `${APP.title} v${APP.version}` : APP.title;
   const title = `${name} - ${host} (${WEBVIEW.viewActive})`;
   const previous = WEBVIEW.window.getTitle();
