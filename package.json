@@ -21,8 +21,8 @@
         "@electron-forge/maker-deb": "^7.11.2",
         "@electron-forge/maker-zip": "^7.11.2",
         "@electron-forge/publisher-github": "^7.11.2",
-        "electron": "^44.0.0",
-        "jszip": "^3.10.1",
+        "electron": "^44.3.0",
+        "jszip": "^3.10.2",
         "prettier": "^3.9.6"
     },
     "dependencies": {
