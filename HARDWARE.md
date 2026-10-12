@@ -267,7 +267,7 @@ device to install its own updates (the App entity still reports that a newer rel
 
 <details><summary>Display freezes after hours of uptime, SSH still works (v3d GPU hang).</summary>
 
-  - On **Raspberry Pi 4** running **kernel 6.18.x** the screen can go black or freeze after variable uptime (minutes to hours) while SSH and the MQTT heartbeat keep working — a hard power cycle is required (`sudo reboot` hangs too). The kernel log shows `v3d_render_job_timedout`, `v3d_gpu_reset_for_timeout` and a blocked `kworker` (DMA fence deadlock). See [touchkio#211](https://github.com/leukipp/touchkio/issues/211).
+  - On **Raspberry Pi 4** running **kernel 6.18.x** the screen can go black or freeze after variable uptime (minutes to hours) while SSH and the MQTT sensors keep working — a hard power cycle is required (`sudo reboot` hangs too). The kernel log shows `v3d_render_job_timedout`, `v3d_gpu_reset_for_timeout` and a blocked `kworker` (DMA fence deadlock). See [touchkio#211](https://github.com/leukipp/touchkio/issues/211).
     - This is a **v3d kernel regression** introduced with 6.18 (the GPU job scheduler times out on jobs submitted by Electron/Chromium and the reset deadlocks); it is not a TouchTheo bug. Systems on kernel 6.12 were stable.
     - Workaround: run TouchTheo with `--disable-gpu` so Chromium stops submitting GPU jobs. TouchTheo forwards unrecognised flags straight to Chromium, so add it to the service `ExecStart` (e.g. `ExecStart=/usr/bin/touchtheo --disable-gpu`) or pass it during setup. The Pi 4 renders the kiosk fine in software.
 

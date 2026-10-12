@@ -22,9 +22,9 @@ const init = async () => {
 
   // Parse arguments
   const url = new URL(ARGS.mqtt_url);
-  const user = ARGS.mqtt_user ? ARGS.mqtt_user : null;
-  const password = ARGS.mqtt_password ? ARGS.mqtt_password : null;
-  const discovery = ARGS.mqtt_discovery ? ARGS.mqtt_discovery : "homeassistant";
+  const user = ARGS.mqtt_user || null;
+  const password = ARGS.mqtt_password || null;
+  const discovery = ARGS.mqtt_discovery || "homeassistant";
 
   const model = hardware.getModel();
   const vendor = hardware.getVendor();
@@ -49,8 +49,8 @@ const init = async () => {
   };
 
   // Init options
-  const masked = password === null ? null : "*".repeat(password.length);
-  const options = user === null || password === null ? {} : { username: user, password: password };
+  const masked = password && "*".repeat(password.length);
+  const options = user && password ? { username: user, password: password } : {};
   options.will = { topic: `${INTEGRATION.root}/kiosk/state`, payload: "Terminated", qos: 1, retain: true };
   options.rejectUnauthorized = !("ignore_certificate_errors" in ARGS);
   options.reconnectPeriod = 10 * 1000;
@@ -71,14 +71,15 @@ const init = async () => {
       initRefresh();
       initKiosk();
       initTheme();
+      initWidget();
       initDisplay();
       initVolume();
       initMicrophone();
       initKeyboard();
-      initWidget();
       initPageNumber();
       initPageZoom();
       initPageUrl();
+      initPager();
 
       // Init client sensors
       initModel();
@@ -97,9 +98,9 @@ const init = async () => {
 
       // Init client diagnostic
       initScreenshot();
-      initHeartbeat();
       initErrors();
       initVersion();
+      initHeartbeat();
 
       // Integration initialized
       INTEGRATION.initialized = true;
@@ -144,7 +145,6 @@ const init = async () => {
       return;
     }
     updateLastActive();
-    updateHeartbeat();
     updateErrors();
   }, 30 * 1000);
 
@@ -514,6 +514,56 @@ const updateTheme = async () => {
 };
 
 /**
+ * Initializes the widget visibility and handles the execute logic.
+ *
+ * @returns {void}
+ */
+const initWidget = () => {
+  const root = `${INTEGRATION.root}/widget`;
+  const config = {
+    name: "Widget",
+    unique_id: `${INTEGRATION.node}_widget`,
+    command_topic: `${root}/set`,
+    state_topic: `${root}/state`,
+    value_template: "{{ value }}",
+    options: ["Enabled", "Disabled"],
+    icon: "mdi:page-layout-sidebar-right",
+    device: INTEGRATION.device,
+  };
+  // TouchTheo 1.6.2–1.6.4 published this entity as a `switch`; that config is
+  // retained on the broker and would leave a dead entity in Home Assistant.
+  removeConfig("switch", config, true);
+  if (ARGS.app_disable.includes("mqtt_widget")) {
+    removeConfig("select", config, true);
+    return;
+  }
+  publishConfig("select", config, true)
+    .on("message", (topic, message) => {
+      if (topic === config.command_topic) {
+        const status = message.toString();
+        console.verbose("Set Widget:", status);
+        WEBVIEW.widget.setEnabled(status === "Enabled");
+        updateWidget();
+      }
+    })
+    .subscribe(config.command_topic);
+  updateWidget();
+};
+
+/**
+ * Updates the widget visibility via the mqtt connection.
+ *
+ * @returns {Promise<void>}
+ */
+const updateWidget = async () => {
+  if (ARGS.app_disable.includes("mqtt_widget")) {
+    return;
+  }
+  const status = WEBVIEW.tracker.widget.enabled ? "Enabled" : "Disabled";
+  publishState("widget", status, true);
+};
+
+/**
  * Initializes the display status, brightness and handles the execute logic.
  */
 const initDisplay = () => {
@@ -708,47 +758,6 @@ const updateKeyboard = async () => {
 };
 
 /**
- * Initializes the side-panel widget toggle and handles the execute logic.
- *
- * Exposes the floating side-panel widget as an MQTT switch so it can be shown or
- * hidden at runtime without editing the `web_widget` argument (touchkio#168).
- */
-const initWidget = () => {
-  const root = `${INTEGRATION.root}/widget`;
-  const config = {
-    name: "Widget",
-    unique_id: `${INTEGRATION.node}_widget`,
-    command_topic: `${root}/set`,
-    state_topic: `${root}/state`,
-    icon: "mdi:dock-right",
-    device: INTEGRATION.device,
-  };
-  if (ARGS.app_disable.includes("mqtt_widget")) {
-    removeConfig("switch", config);
-    return;
-  }
-  publishConfig("switch", config)
-    .on("message", (topic, message) => {
-      if (topic === config.command_topic) {
-        const status = message.toString();
-        console.verbose("Set Widget Visibility:", status);
-        WEBVIEW.window.setWidget(status === "ON");
-        updateWidget();
-      }
-    })
-    .subscribe(config.command_topic);
-  updateWidget();
-};
-
-/**
- * Updates the side-panel widget visibility via the mqtt connection.
- */
-const updateWidget = async () => {
-  if (ARGS.app_disable.includes("mqtt_widget")) return;
-  publishState("widget", WEBVIEW.widgetEnabled ? "ON" : "OFF");
-};
-
-/**
  * Initializes the page number and handles the execute logic.
  */
 const initPageNumber = () => {
@@ -901,6 +910,53 @@ const updatePageUrl = async () => {
   const currentUrl = WEBVIEW.views[WEBVIEW.viewActive || 1].webContents.getURL();
   const pageUrl = !currentUrl || currentUrl.startsWith("data:") ? defaultUrl : currentUrl;
   publishState("page_url", pageUrl.length < 255 ? pageUrl : null);
+};
+
+/**
+ * Initializes the pager visibility and handles the execute logic.
+ *
+ * @returns {void}
+ */
+const initPager = () => {
+  const root = `${INTEGRATION.root}/pager`;
+  const config = {
+    name: "Pager",
+    unique_id: `${INTEGRATION.node}_pager`,
+    command_topic: `${root}/set`,
+    state_topic: `${root}/state`,
+    value_template: "{{ value }}",
+    options: ["Enabled", "Disabled"],
+    icon: "mdi:view-carousel",
+    device: INTEGRATION.device,
+  };
+  if (WEBVIEW.viewUrls.length <= 2 || ARGS.app_disable.includes("mqtt_pager")) {
+    removeConfig("select", config, true);
+    return;
+  }
+  publishConfig("select", config, true)
+    .on("message", (topic, message) => {
+      if (topic === config.command_topic) {
+        const status = message.toString();
+        console.verbose("Set Pager:", status);
+        WEBVIEW.pager.setEnabled(status === "Enabled");
+        updatePager();
+      }
+    })
+    .subscribe(config.command_topic);
+  updatePager();
+};
+
+/**
+ * Updates the pager visibility via the mqtt connection.
+ *
+ * @returns {Promise<void>}
+ */
+const updatePager = async () => {
+  if (ARGS.app_disable.includes("mqtt_pager")) {
+    return;
+  }
+  const status = WEBVIEW.tracker.pager.enabled ? "Enabled" : "Disabled";
+  publishState("pager", status, true);
 };
 
 /**
@@ -1362,43 +1418,10 @@ const initScreenshot = () => {
 const updateScreenshot = async () => {
   if (ARGS.app_disable.includes("mqtt_screenshot")) return;
   const screenshot = WEBVIEW.tracker.screenshot;
-  publishState("screenshot", screenshot, false);
-};
-
-/**
- * Initializes the heartbeat sensor.
- */
-const initHeartbeat = () => {
-  const root = `${INTEGRATION.root}/heartbeat`;
-  const config = {
-    name: "Heartbeat",
-    unique_id: `${INTEGRATION.node}_heartbeat`,
-    state_topic: `${root}/state`,
-    json_attributes_topic: `${root}/attributes`,
-    value_template: "{{ value }}",
-    entity_category: "diagnostic",
-    icon: "mdi:heart-flash",
-    device: INTEGRATION.device,
-  };
-  if (ARGS.app_disable.includes("mqtt_heartbeat")) {
-    removeConfig("sensor", config);
+  if (!screenshot.changed) {
     return;
   }
-  publishConfig("sensor", config);
-  updateHeartbeat();
-};
-
-/**
- * Updates the heartbeat sensor via the mqtt connection.
- */
-const updateHeartbeat = async () => {
-  if (ARGS.app_disable.includes("mqtt_heartbeat")) return;
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
-  const heartbeat = local.toISOString().replace(/\.\d{3}Z$/, "");
-  const attributes = { date: now };
-  publishState("heartbeat", heartbeat, false);
-  publishAttributes("heartbeat", attributes, false);
+  publishState("screenshot", screenshot.data, false);
 };
 
 /**
@@ -1473,6 +1496,15 @@ const updateVersion = async () => {
   if (ARGS.app_disable.includes("mqtt_version")) return;
   publishState("version", APP.version);
   publishAttributes("version", APP.build);
+};
+
+/**
+ * Removes any existing heartbeat sensor. (deleted in v1.6.0)
+ *
+ * @returns {void}
+ */
+const initHeartbeat = () => {
+  removeConfig("sensor", { unique_id: `${INTEGRATION.node}_heartbeat` }, true);
 };
 
 module.exports = {

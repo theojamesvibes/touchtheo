@@ -150,7 +150,7 @@ bash migrate_from_touchkio.sh --dry-run
 2. Stops the `touchkio` systemd user service
 3. Downloads and installs the latest TouchTheo `.deb` from GitHub Releases
 4. Migrates `~/.config/touchkio/Arguments.json` → `~/.config/touchtheo/`
-   - All WEB settings (`web_url`, `web_theme`, `web_zoom`, `web_widget`) and MQTT connection settings (`mqtt_url`, `mqtt_user`, `mqtt_discovery`) are preserved exactly
+   - All WEB settings (`web_url`, `web_theme`, `web_zoom`, `web_widget`, `web_pager`) and MQTT connection settings (`mqtt_url`, `mqtt_user`, `mqtt_discovery`) are preserved exactly
    - The MQTT password is **automatically re-encrypted** for TouchTheo. Because the password uses AES-256-CBC with a key derived from your machine ID **and the app name**, a direct file copy would silently fail to decrypt on next launch. The script uses an inline Node.js snippet to decrypt with the TouchKio key and re-encrypt with the TouchTheo key — no password re-entry required
    - If re-encryption fails for any reason, the password field is removed and you will be prompted to re-enter it via `touchtheo --setup`
 5. Carries over any custom `ExecStart` flags from `touchkio.service` (e.g. `--disable-features=UseDNSHttps,AsyncDns`, `--disable-gpu`) into the new `touchtheo.service`
@@ -178,6 +178,7 @@ The available arguments to control the kiosk application via terminal are as fol
 | `--web-theme` (Optional)  | `dark`  | Theme settings of the web browser (`light` or `dark`)                                                      |
 | `--web-zoom` (Optional)   | `1.25`  | Zoom settings of the web browser (`1.0` is `100%`)                                                         |
 | `--web-widget` (Optional) | `true`  | Enables the sidebar widget (`true` or `false`)                                                             |
+| `--web-pager` (Optional)  | `true`  | Enables the sidebar pager (`true` or `false`)                                                              |
 
 These arguments allow you to customize the appearance of the web browser view.
 
@@ -218,13 +219,43 @@ touchtheo --web-url=http://192.168.1.42:8123 --mqtt-url=mqtt://192.168.1.42:1883
 ```
 
 Among the auto-discovered entities are a few worth calling out:
-- **Widget** (switch) — shows or hides the floating side-panel widget at runtime, so you can flip it on to troubleshoot a dashboard and back off without editing `--web-widget` and restarting ([touchkio#168](https://github.com/leukipp/touchkio/issues/168)).
+- **Widget** / **Pager** (select) — `Enabled`/`Disabled` at runtime, so you can flip the side-panel widget or the page switcher on to troubleshoot a dashboard and back off without editing `--web-widget`/`--web-pager` and restarting ([touchkio#168](https://github.com/leukipp/touchkio/issues/168)). The Pager entity only exists when more than one `--web-url` is configured.
 - **Display** (light) — brightness now accepts **0** to switch PWM/sysfs backlights and `ddcutil` displays fully off, not just down to the minimum ([touchkio#190](https://github.com/leukipp/touchkio/issues/190)).
 - **Package Upgrades** (sensor) — on headless Raspberry Pi OS nothing refreshes the apt index automatically, so this used to stay at `0`. TouchTheo now runs a background `apt-get update` (at most twice a day, only when it has sudo rights) so the count reflects reality ([touchkio#213](https://github.com/leukipp/touchkio/issues/213)).
 - **App** (update) — the update entity is now always published, so Home Assistant tells you a newer TouchTheo release exists even on a device that cannot install it itself. The **Install** button only appears when the device was installed from the `.deb`, runs `touchtheo.service` and has password-less `sudo apt` rights ([touchkio#70](https://github.com/leukipp/touchkio/issues/70)).
-- **Screenshot** / **Heartbeat** — these are published **non-retained**. A retained screenshot or heartbeat survives a broker restart and makes Home Assistant show a stale image, or a "last seen" timestamp that predates the device actually being up.
+- **Screenshot** — published **non-retained** and only when the image actually changed. A retained screenshot survives a broker restart and makes Home Assistant show a stale image. The former **Heartbeat** sensor was removed in 1.7.0 (upstream [touchkio#242](https://github.com/leukipp/touchkio/issues/242)); use **Last Active** or the device availability instead.
 
-Any of these can be turned off by adding its key (e.g. `mqtt_widget`, `mqtt_package_upgrades`) to the `app_disable` list in `Arguments.json`.
+Any of these can be turned off by adding its key (e.g. `mqtt_widget`, `mqtt_pager`, `mqtt_package_upgrades`) to the `app_disable` list in `Arguments.json`.
+
+### Flags
+These flags are primarily meant for development and debugging, but may also come in handy for some special use cases.
+They can be added into `Arguments.json`, but may change in future versions.
+
+| Name            | Default      | Description                                                                |
+| --------------- | ------------ | -------------------------------------------------------------------------- |
+| `--app-kiosk`   | `fullscreen` | Initial window status (`framed`, `fullscreen`, `maximized` or `minimized`) |
+| `--app-reset`   | -            | Reset stored data (`session` or `arguments`)                               |
+| `--app-disable` | -            | List of disabled features (`web_*` or `mqtt_*`)                            |
+| `--app-early`   | -            | Include pre-release versions for app updates                               |
+| `--app-debug`   | -            | Opens dev tools and raises the log level                                   |
+
+`app_disable` also accepts `web_touch` (do not emulate touch events for the mouse) and `web_wake` (do not swallow the first tap that wakes a dark display).
+
+For example:
+```bash
+touchtheo --web-url=http://192.168.1.42:8123 --app-kiosk=framed --app-disable=mqtt_screenshot,web_touch
+```
+
+In the `~/.config/touchtheo/Arguments.json` file:
+```json
+{
+  "app_kiosk": "framed",
+  "app_disable": [
+    "mqtt_screenshot",
+    "web_touch"
+  ]
+}
+```
 
 ## User Interface
 TouchTheo provides a simple webview window designed specifically for Touch Displays. Electron apps are known to be resource intensive due to their architecture and the inclusion of a full web browser environment. If you just run the kiosk application without other heavy loads, everything should run smoothly.

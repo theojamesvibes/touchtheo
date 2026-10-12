@@ -8,6 +8,95 @@ Versions increment as: **major** for breaking changes, **minor** for new feature
 
 ---
 
+## [1.7.0] — 2026-10-12
+
+Catch-up against upstream **TouchKio v1.6.0** (2026-09-17). TouchTheo 1.6.3 was aligned
+with upstream v1.5.2, so the 17 upstream commits since then were reviewed and the
+applicable ones ported. 1.6.4 has since been confirmed working on a Raspberry Pi 5;
+this release is unit/CI verified only.
+
+### Added
+- **Kiosk window mode argument (upstream TouchKio #222).** `--app-kiosk` /
+  `"app_kiosk"` selects the initial window status: `framed`, `fullscreen` (default),
+  `maximized` or `minimized`.
+- **Pager argument and MQTT control (upstream #64, #168).** `--web-pager` /
+  `"web_pager"` enables the page switcher independently of the widget, and a new
+  **Pager** `select` entity (`Enabled`/`Disabled`) toggles it at runtime. The pager
+  now draws chevron indicators while pressed. The entity is only published when more
+  than one `--web-url` is configured; opt out with `mqtt_pager` in `app_disable`.
+- **`web_touch` and `web_wake` opt-outs** in `app_disable`: skip the Chromium
+  touch-emulation attach, or stop discarding the first tap that wakes a dark display.
+- **`acpi-als` ambient light sensors** are detected alongside `als` (upstream PR #262).
+- **Pure taps now reset Last Active (upstream #218).** The pointer time was only
+  stamped on mouse movement, so repeated taps on the same spot never refreshed the
+  sensor. `mouseDown` now stamps it too.
+
+### Changed
+- **Widget entity is now a `select` (`Enabled`/`Disabled`), replacing the 1.6.2
+  `switch` (`ON`/`OFF`).** This aligns the MQTT shape with upstream so future
+  catch-ups stay mechanical. **Breaking for automations** that targeted
+  `switch.<node>_widget`; the retained switch config is removed on startup so
+  Home Assistant drops the old entity. Disabling the widget now also hides the
+  navigation bar, as upstream does.
+- **Display command fallback (upstream #233).** On Wayland, `wlopm` and
+  `kscreen-doctor` are now tried on any desktop, not only labwc/wayfire/kde/plasma.
+- **Screenshot sensor only publishes when the image changed**, skips captures while
+  minimized, guards empty captures and serialises overlapping captures.
+- **Status bar renamed to header** (`html/status.html` → `html/header.html`,
+  `WEBVIEW.status` → `WEBVIEW.header`) following upstream.
+- **Cookie store is wrapped in try/catch and restricted to http(s) origins**, so a
+  renderer crash during a cookie read no longer surfaces as an unhandled rejection.
+- **Home/Reload handle `#` URLs** by reloading in place instead of re-navigating.
+- **Dependencies:** `mqtt` 5.15.2 → **5.16.0** (fixes six advisories reachable from a
+  malicious or compromised broker, including an uncaught `TypeError` that killed the
+  process on every reconnect), `electron` → 44.7.0, `jszip` → 3.10.2,
+  `prettier` → 3.9.9. `electron-forge` stays on 7.11.x (see *Tooling*).
+
+### Removed
+- **Heartbeat sensor (upstream #242).** Upstream deprecated it in 1.5.x and removed
+  it in 1.6.0; its retained config is deleted on startup. `mqtt_heartbeat` in
+  `app_disable` is now a no-op. Use **Last Active** or device availability instead.
+
+### Not ported (deliberate)
+- **Idle view.** Upstream 1.6.0 swaps the active page for a "moon" idle page ten
+  minutes after the display turns off to save memory. The only open upstream issue
+  (#270) is this feature leaving the idle page stuck after wake. Deferred until fixed.
+- **mDNS discovery of Home Assistant during `--setup`** (new `bonjour-service`
+  dependency for a prompt default only).
+- Upstream PR #265 (send `ddcutil` D6=5 instead of 4) — one monitor's evidence,
+  value 5 is not universally supported; PR #266 (`page_number` max) — incorrect,
+  the existing `viewUrls.length - 1` is right; PR #268 (extension framework) —
+  unreviewed upstream; PR #260 (Xubuntu installer prompts) — out of scope.
+
+### Tooling
+- **Dependabot PR #11 closed as superseded.** It bundled the `mqtt` security fix
+  with an `electron-forge` 7 → 8 major, which changes the `.deb` build pipeline
+  that CI never exercises. The safe bumps are taken here; `dependabot.yml` now
+  ignores `@electron-forge/*` majors so they arrive on their own, to be verified by
+  a real release build.
+- Two new guard tests (`acpi-als` detection, Wayland display-command fallback);
+  CI prettier pin bumped to 3.9.9.
+
+### Upstream issue status
+
+Audit of every **open** [TouchKio issue](https://github.com/leukipp/touchkio/issues)
+and the recently closed ones against TouchTheo as of 2026-10-12:
+
+| Upstream | Status in TouchTheo |
+| --- | --- |
+| #270 Idle icon stuck after wake (1.6.0) | **Not affected** — idle view deliberately not ported |
+| #267 Shutdown/Reboot missing via MQTT | **Documented** — granular sudoers model in `HARDWARE.md` |
+| #256 HA login lost after restart (1.6.0) | **Closed upstream** — not reproducible, clean reinstall fixed it |
+| #248 Self-signed certificate | **Fixed** in 1.6.4 (`ignore_certificate_errors` restored to known args) |
+| #251 Hover tooltip stays | **HA-side** — reproduces in plain Chromium |
+| #233 Display command selection | **Fixed** (this release) |
+| #222 Kiosk window mode | **Implemented** (this release) |
+| #218 / #197 Touch not resetting / wake tap leaks | **Mitigated** — tap stamps Last Active (this release); upstream closed both as "reinstall the OS" |
+| #242 Heartbeat removed | **Aligned** (this release) |
+| #239 tty-session display control | **Fixed** in 1.6.3 |
+
+---
+
 ## [1.6.4] — 2026-09-07
 
 Security and stability fixes from a full review of the fork, originally written on

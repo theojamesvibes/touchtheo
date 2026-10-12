@@ -28,3 +28,9 @@ updates:
       npm-dependencies:
         patterns:
           - "*"
+    ignore:
+      # Electron Forge majors change the .deb build pipeline, which CI does not
+      # exercise. They are taken deliberately, verified by a real release build,
+      # never bundled into the weekly group (see CHANGELOG 1.7.0, PR #11).
+      - dependency-name: "@electron-forge/*"
+        update-types: ["version-update:semver-major"]

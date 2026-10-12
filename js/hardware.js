@@ -606,7 +606,7 @@ const getIlluminanceLevelPath = () => {
       continue;
     }
     const name = readFile(nameFile);
-    if (name === "als") {
+    if (["als", "acpi-als"].includes(name)) {
       return path.join(iio, device);
     }
   }
@@ -663,8 +663,8 @@ const getDisplayStatusCommand = () => {
   const mapping = {
     wayland: [
       { command: "ddcutil", desktops: ["*"] },
-      { command: "wlopm", desktops: ["labwc", "wayfire", "unknown"] },
-      { command: "kscreen-doctor", desktops: ["kde", "plasma", "unknown"] },
+      { command: "wlopm", desktops: ["labwc", "wayfire", "*"] },
+      { command: "kscreen-doctor", desktops: ["kde", "plasma", "*"] },
     ],
     x11: [
       { command: "ddcutil", desktops: ["*"] },
@@ -1178,7 +1178,7 @@ const refreshAptCacheIfStale = () => {
 /**
  * Checks if system upgrades are available using `apt`.
  *
- * @returns {Array<string>} A list of package names that are available for upgrade.
+ * @returns {Array<string>} A list of packages that are available for upgrade.
  */
 const checkPackageUpgrades = () => {
   if (!commandExists("apt")) {
@@ -1465,6 +1465,7 @@ const execScriptCommand = (cmd, args, callback = null) => {
       if (typeof callback === "function") callback(100, null);
     }
   });
+  return proc;
 };
 
 /**
@@ -1590,7 +1591,8 @@ const readFile = (path, sync = true) => {
  * Helper function for asynchronous interval calls.
  *
  * @param {Function} callback - An async callback function.
- * @param {number} ms - Sleep time in milliseconds.
+ * @param {number} ms - Interval time in milliseconds.
+ * @returns {void}
  */
 const interval = (callback, ms) => {
   const run = () => {
@@ -1623,6 +1625,8 @@ module.exports = {
   getProcessorTemperature,
   getBatteryLevel,
   getIlluminanceLevel,
+  getIlluminanceLevelPath,
+  getDisplayStatusCommand,
   getDisplayStatus,
   setDisplayStatus,
   getDisplayBrightness,

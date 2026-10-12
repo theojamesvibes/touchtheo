@@ -16,6 +16,7 @@ const KNOWN_ARGS = new Set([
   "web_theme",
   "web_zoom",
   "web_widget",
+  "web_pager",
   "mqtt_url",
   "mqtt_user",
   "mqtt_password",
@@ -25,6 +26,7 @@ const KNOWN_ARGS = new Set([
   "version",
   "app_reset",
   "app_disable",
+  "app_kiosk",
   // Behavioural flags consumed via `"key" in ARGS` (app_debug/app_early/
   // enable_logging) or read from ARGS (ignore_certificate_errors). Must be
   // listed here or parseArgs drops them from the CLI and they only work when
@@ -264,8 +266,9 @@ const initArgs = async () => {
   // Setup arguments from file path
   if ((!argsProvided && !argsFileExists) || "setup" in args) {
     await sleep(3000);
+    const defaults = { ip: "192.168.1.42" };
     do {
-      args = await promptArgs(process);
+      args = await promptArgs(process, defaults);
     } while (!Object.keys(args).length);
     writeArgs(argsFilePath, args);
   } else if (argsFileExists) {
@@ -432,9 +435,10 @@ const parseArgs = (proc) => {
  * Prompts argument values on the command-line.
  *
  * @param {Object} proc - The process object.
- * @returns {Object} An object mapping argument names to their corresponding values.
+ * @param {Object} defaults - Default values for prompt fallback values.
+ * @returns {Promise<Object>} An object mapping argument names to their corresponding values.
  */
-const promptArgs = async (proc) => {
+const promptArgs = async (proc, defaults) => {
   const read = readline.createInterface({
     input: proc.stdin,
     output: proc.stdout,
@@ -445,7 +449,7 @@ const promptArgs = async (proc) => {
     {
       key: "web_url",
       question: "\nEnter WEB url",
-      fallback: "http://192.168.1.42:8123",
+      fallback: `http://${defaults.ip}:8123`,
     },
     {
       key: "web_theme",
@@ -463,6 +467,11 @@ const promptArgs = async (proc) => {
       fallback: "true",
     },
     {
+      key: "web_pager",
+      question: "Enter WEB pager enabled",
+      fallback: "true",
+    },
+    {
       key: "mqtt",
       question: "\nConnect to MQTT Broker?",
       fallback: "y/N",
@@ -470,7 +479,7 @@ const promptArgs = async (proc) => {
     {
       key: "mqtt_url",
       question: "\nEnter MQTT url",
-      fallback: "mqtt://192.168.1.42:1883",
+      fallback: `mqtt://${defaults.ip}:1883`,
     },
     {
       key: "mqtt_user",

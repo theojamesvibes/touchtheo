@@ -34,7 +34,7 @@ jobs:
         run: for f in index.js js/*.js tests/*.js; do node --check "$f"; done
 
       - name: Check formatting
-        run: npx --yes prettier@3.9.6 --check "js/**/*.js" index.js "tests/*.js" "html/*.html"
+        run: npx --yes prettier@3.9.9 --check "js/**/*.js" index.js "tests/*.js" "html/*.html"
 
       - name: Run unit tests
         run: node --test tests/*.test.js

@@ -4,7 +4,7 @@
     "description": "Home Assistant Touch Kiosk for Raspberry Pi 5",
     "homepage": "https://github.com/theojamesvibes/touchtheo",
     "author": "theojamesvibes",
-    "version": "1.6.4",
+    "version": "1.7.0",
     "license": "MIT",
     "main": "index.js",
     "scripts": {
@@ -21,13 +21,13 @@
         "@electron-forge/maker-deb": "^7.11.2",
         "@electron-forge/maker-zip": "^7.11.2",
         "@electron-forge/publisher-github": "^7.11.2",
-        "electron": "^44.0.0",
-        "jszip": "^3.10.1",
-        "prettier": "^3.9.6"
+        "electron": "^44.5.1",
+        "jszip": "^3.10.2",
+        "prettier": "^3.9.9"
     },
     "dependencies": {
         "axios": "^1.20.0",
         "electron-log": "^5.4.4",
-        "mqtt": "^5.15.2"
+        "mqtt": "^5.16.0"
     }
 }

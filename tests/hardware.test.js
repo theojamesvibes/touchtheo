@@ -355,3 +355,56 @@ test("setAudioVolume / setMicrophoneVolume: reject NaN", (t) => {
     assert.equal(error, "Invalid volume", `${fn} should reject NaN`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// TouchKio 1.6.0 catchup guards (touchtheo 1.7.0)
+// ---------------------------------------------------------------------------
+
+const withIioDevice = (t, name) => {
+  const root = "/sys/bus/iio/devices";
+  const device = `${root}/iio:device0`;
+  t.mock.method(fs, "existsSync", (p) => p === root || p === `${device}/name` || p === `${device}/in_illuminance_raw`);
+  t.mock.method(fs, "readdirSync", (p) => (p === root ? ["iio:device0"] : []));
+  t.mock.method(fs, "readFileSync", (p) => {
+    if (p === `${device}/name`) return `${name}\n`;
+    throw new Error(`ENOENT: ${p}`);
+  });
+  return device;
+};
+
+test("getIlluminanceLevelPath: accepts the acpi-als driver name (upstream PR #262)", (t) => {
+  const device = withIioDevice(t, "acpi-als");
+  assert.equal(hardware.getIlluminanceLevelPath(), device);
+});
+
+test("getIlluminanceLevelPath: still accepts als and ignores other iio devices", (t) => {
+  const device = withIioDevice(t, "als");
+  assert.equal(hardware.getIlluminanceLevelPath(), device);
+  t.mock.restoreAll();
+  withIioDevice(t, "bmp280");
+  assert.equal(hardware.getIlluminanceLevelPath(), null);
+});
+
+test("getDisplayStatusCommand: wlopm is a wayland fallback on any desktop (touchkio#233)", (t) => {
+  const prev = global.HARDWARE;
+  t.after(() => {
+    global.HARDWARE = prev;
+  });
+  // Before the fix wlopm/kscreen-doctor were only tried on labwc/wayfire/kde/
+  // plasma/"unknown"; a desktop such as "gnome" without ddcutil ended with no
+  // display command at all and the Display entity went missing from MQTT.
+  global.HARDWARE = {
+    support: {},
+    session: { type: "wayland", desktop: "gnome" },
+    display: { status: { path: null, command: null, value: {} } },
+  };
+  t.mock.method(cpr, "execSync", (cmd) => {
+    if (cmd.startsWith("which ")) {
+      if (cmd.endsWith(" wlopm")) return "/usr/bin/wlopm\n";
+      throw new Error(`not found: ${cmd}`);
+    }
+    if (cmd.startsWith("wlopm")) return "DSI-1 on\n";
+    throw new Error(`unexpected: ${cmd}`);
+  });
+  assert.equal(hardware.getDisplayStatusCommand(), "wlopm");
+});
