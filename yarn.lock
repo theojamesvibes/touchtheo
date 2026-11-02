@@ -799,10 +799,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/node@*":
-  version "24.10.1"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.10.1.tgz#91e92182c93db8bd6224fca031e2370cef9a8f01"
-  integrity sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==
+"@types/node@*", "@types/node@^24.9.0":
+  version "24.12.4"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.12.4.tgz#2709745569811dcbdc57c097fafdd387c6330382"
+  integrity sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==
   dependencies:
     undici-types "~7.16.0"
 
@@ -812,13 +812,6 @@
   integrity sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ==
   dependencies:
     undici-types "~6.21.0"
-
-"@types/node@^24.9.0":
-  version "24.12.4"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.12.4.tgz#2709745569811dcbdc57c097fafdd387c6330382"
-  integrity sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==
-  dependencies:
-    undici-types "~7.16.0"
 
 "@types/readable-stream@^4.0.0", "@types/readable-stream@^4.0.21":
   version "4.0.22"
@@ -1113,10 +1106,10 @@ author-regex@^1.0.0:
   resolved "https://registry.yarnpkg.com/author-regex/-/author-regex-1.0.0.tgz#d08885be6b9bbf9439fe087c76287245f0a81450"
   integrity sha512-KbWgR8wOYRAPekEmMXrYYdc7BRyhn2Ftk7KWfMUnQ43hFdojWEFRxhhRUm3/OFEdPa1r0KAvTTg9YQK57xTe0g==
 
-axios@^1.20.0:
-  version "1.20.0"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.20.0.tgz#515513445aa60e71d04b6521ca6210829ccb4786"
-  integrity sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==
+axios@^1.21.0:
+  version "1.21.0"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.21.0.tgz#30c363a2652d9649e8b4d2645b34c64ca541ff67"
+  integrity sha512-YCzXMB53Q9PZBsh7yN7wtapit4WepwcHS2fP8QhGsBxSz5YtgYobV7GGlWlAJi+RxfU77GQTQi2DSLUma42EYA==
   dependencies:
     follow-redirects "^1.16.0"
     form-data "^4.0.6"
@@ -1629,10 +1622,10 @@ electron-to-chromium@^1.5.249:
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.262.tgz#c31eed591c6628908451c9ca0f0758ed514aa003"
   integrity sha512-NlAsMteRHek05jRUxUR0a5jpjYq9ykk6+kO0yRaMi5moe7u0fVIOeQ3Y30A8dIiWFBNUoQGi1ljb1i5VtS9WQQ==
 
-electron@^44.5.1:
-  version "44.7.0"
-  resolved "https://registry.yarnpkg.com/electron/-/electron-44.7.0.tgz#038bc7ad4c88ef04ea18a792c8ea510908e11979"
-  integrity sha512-aUq9/zLAAFYc+a9gy6cd0C3Y/N/RmovLCD8TV8LhIzNhuND6HEgsu96jJz9cbAxvckSPv+Trf2PKEjktoZgFkw==
+electron@^45.2.0:
+  version "45.2.0"
+  resolved "https://registry.yarnpkg.com/electron/-/electron-45.2.0.tgz#032a2ffec8231ccec45489932e7f80579228096c"
+  integrity sha512-OLQ7ct4TEbXfIctVwId+3RlWGrHr/hVJdCJqwnFWmfsttWAyHdwUhSvJHr/k6j4K+3HxSWg6agFizEv8IHqEBw==
   dependencies:
     "@electron-internal/extract-zip" "^1.0.1"
     "@electron/get" "^5.0.0"
@@ -2733,10 +2726,10 @@ mqtt-packet@^9.0.2:
     debug "^4.3.4"
     process-nextick-args "^2.0.1"
 
-mqtt@^5.16.0:
-  version "5.16.0"
-  resolved "https://registry.yarnpkg.com/mqtt/-/mqtt-5.16.0.tgz#c6721eb165f5bb6a8305219a35da7790a43ae10e"
-  integrity sha512-G0VsEtuJz5sJUgZJaaADMVfW7SIFPzkIuHR+d6rk+tBeSwdCfd9BaIRycRfd2AbyFDEmLlFM+SDQeti/+IbOnw==
+mqtt@^5.16.1:
+  version "5.16.1"
+  resolved "https://registry.yarnpkg.com/mqtt/-/mqtt-5.16.1.tgz#e63f87bb7e6bde61f16902ba6210e34c229e3763"
+  integrity sha512-9aEaiR/mLblsMAiynD8quhcGTaINdta2bdyknAtfVzESfoe6Ncdh/uEs5p+3zqcTEtgYErwL4pNk0QkAynXxlg==
   dependencies:
     "@types/readable-stream" "^4.0.21"
     "@types/ws" "^8.18.1"
